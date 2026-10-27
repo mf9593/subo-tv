@@ -1,0 +1,25 @@
+/**
+ * 电视直播 - Gradle 设置文件
+ *
+ * 纯 Java 项目，单模块 app。
+ */
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // 国内镜像，加速依赖下载
+        maven { url 'https://maven.aliyun.com/repository/public' }
+    }
+}
+
+rootProject.name = "电视直播"
+include ':app'

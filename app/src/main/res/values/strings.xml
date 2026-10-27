@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">电视直播</string>
+    <string name="key_hint">上下键换台 · 数字键选台 · 方向盘中间键 频道列表 · 菜单键 设置</string>
+    <string name="no_channel">还没有频道
+按「菜单」键 → 重新载入频道
+或把 tvlive.m3u 放到 U 盘/内置存储根目录</string>
+</resources>
