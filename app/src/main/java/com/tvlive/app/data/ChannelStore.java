@@ -36,34 +36,52 @@ public final class ChannelStore {
 
     /** 启动时取频道：优先缓存的列表，缓存为空再重新载入 */
     public static List<Channel> load(Context context) {
+        // 空壳模式：没有导入源时不返回缓存，直接返回空列表
+        if (SourceStore.list(context).isEmpty()) {
+            return new ArrayList<Channel>();
+        }
         List<Channel> cached = fromPrefs(context);
         if (!cached.isEmpty()) return cached;
         return reload(context);
     }
 
-    /** 强制重新载入：外部 M3U &gt; 内置 assets */
+    /** 强制重新载入：激活的源 &gt; 外部 M3U &gt; 内置 assets */
     public static List<Channel> reload(Context context) {
         List<Channel> list = new ArrayList<Channel>();
         String sourcePath = null;
 
-        for (String path : externalPaths(context)) {
-            File file = new File(path);
-            if (!file.exists() || !file.isFile() || !file.canRead()) continue;
-            List<Channel> parsed = M3uParser.parse(readFile(file));
+        // 1) 用户导入的多源文件（激活的那个）
+        SourceStore.Source active = SourceStore.active(context);
+        if (active != null && !active.text.trim().isEmpty()) {
+            List<Channel> parsed = M3uParser.parse(active.text);
             if (!parsed.isEmpty()) {
                 list = parsed;
-                sourcePath = path;
-                break;
+                sourcePath = "导入源：" + active.name;
             }
         }
 
+        // 2) 外部 M3U 文件（仅当用户放入设备时使用）
         if (list.isEmpty()) {
-            List<Channel> parsed = M3uParser.parse(readAsset(context));
-            if (!parsed.isEmpty()) {
-                list = parsed;
-                sourcePath = "内置 " + ASSET_NAME;
+            for (String path : externalPaths(context)) {
+                File file = new File(path);
+                if (!file.exists() || !file.isFile() || !file.canRead()) continue;
+                List<Channel> parsed = M3uParser.parse(readFile(file));
+                if (!parsed.isEmpty()) {
+                    list = parsed;
+                    sourcePath = path;
+                    break;
+                }
             }
         }
+
+        // 3) 内置 assets（空壳模式：不内置数据，删除此回退）
+        // if (list.isEmpty()) {
+        //     List<Channel> parsed = M3uParser.parse(readAsset(context));
+        //     if (!parsed.isEmpty()) {
+        //         list = parsed;
+        //         sourcePath = "内置 " + ASSET_NAME;
+        //     }
+        // }
 
         save(context, list);
         if (sourcePath != null) {
@@ -76,7 +94,7 @@ public final class ChannelStore {
     public static String lastSource(Context context) {
         String value = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString("last_source", null);
-        return value == null ? "内置 " + ASSET_NAME : value;
+        return value == null ? "未导入" : value;
     }
 
     /** 可能存放外部 M3U 的位置 */
@@ -110,7 +128,9 @@ public final class ChannelStore {
             try {
                 item.put("n", channel.number);
                 item.put("name", channel.name);
-                item.put("url", channel.url);
+                JSONArray urls = new JSONArray();
+                for (String url : channel.urls) urls.put(url);
+                item.put("urls", urls);
                 if (channel.group != null) item.put("g", channel.group);
             } catch (Exception ignored) {
                 continue;
@@ -136,11 +156,23 @@ public final class ChannelStore {
             for (int i = 0; i < array.length(); i++) {
                 JSONObject item = array.optJSONObject(i);
                 if (item == null) continue;
-                String url = item.optString("url", "");
-                if (url.isEmpty()) continue;
+                List<String> urls = new ArrayList<String>();
+                JSONArray urlArray = item.optJSONArray("urls");
+                if (urlArray != null) {
+                    for (int j = 0; j < urlArray.length(); j++) {
+                        String url = urlArray.optString(j, "");
+                        if (!url.isEmpty()) urls.add(url);
+                    }
+                }
+                if (urls.isEmpty()) {
+                    // 兼容旧版缓存：只有单个 url 字段
+                    String old = item.optString("url", "");
+                    if (!old.isEmpty()) urls.add(old);
+                }
+                if (urls.isEmpty()) continue;
                 list.add(new Channel(item.optInt("n", i + 1),
                         item.optString("name", "频道 " + (i + 1)),
-                        url,
+                        urls,
                         item.optString("g", null)));
             }
         } catch (Throwable ignored) {

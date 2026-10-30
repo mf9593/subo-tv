@@ -1,99 +1,155 @@
-# 电视直播（TV Live）
+# ⚡ 速播
 
-面向 **Android 4.4（API 19）及以上** 电视盒子/电视的直播播放器，**纯遥控器操作**。
+> 极速、纯净的安卓电视直播播放器
 
-- 播放内核：ExoPlayer 2.19.1（最后一个支持 API 16+ 的版本，Media3 要求 API 21）
-- 支持协议：HLS（m3u8）、RTSP（摄像头/推流）、HTTP 渐进式（mp4 等）
-- 频道来源：内置 `assets/channels.m3u` + 外部 `tvlive.m3u` 文件
-- 无广告、无后台服务、不联网上报任何数据
+[![Platform](https://img.shields.io/badge/Platform-Android-lightgrey?logo=android&logoColor=white)](#)
+[![MinSDK](https://img.shields.io/badge/MinSDK-19-blue?logo=android&logoColor=white)](#)
+[![License](https://img.shields.io/badge/License-MIT-green)](#)
 
-## 遥控器按键
+速播是一款专为 Android TV / 电视盒子设计的轻量级直播播放器。**不内置任何频道数据**，你只需导入自己的直播源地址，即可享受流畅的观看体验。
 
-| 按键 | 作用 |
-|---|---|
-| 上 / 下、CH+ / CH-、翻页 | 上/下一个台（循环） |
-| 数字键 0-9 | 输入台号直接跳台（1.5 秒后自动切换） |
-| 方向盘中间键 / OK / 回车 | 频道列表（可上下选择、OK 确认） |
-| 左 / 右 | 调音量 |
-| 菜单键 | 菜单：频道列表 / 重新载入频道 / 缓冲策略 / 帮助 |
-| 信息键 | 重新显示台标信息 |
-| 返回键 | 连按两次退出 |
+---
 
-## 添加自己的频道
+## ✨ 特性
 
-方式一（推荐）：把 `tvlive.m3u` 放到盒子内置存储根目录，或 `Download` 目录下，
-然后在电视上按 **菜单 → 重新载入频道**。
+- **空壳设计** — 不内置频道，你的源由你掌控
+- **多格式支持** — 支持 m3u / m3u8 / txt 直播源
+- **Web 后台** — 电视上启动后台服务，手机浏览器扫码即可导入频道
+- **自动换源** — 当前源失效时自动切换备用源
+- **主题跟随** — 自动适配系统深浅色主题
+- **遥控器友好** — 专为 Android TV 遥控器交互优化
+- **低版本兼容** — 最低支持 Android 4.4.2 (API 19)
+- **纯 Java** — 无 Kotlin 依赖，代码简洁易维护
+- **ExoPlayer** — 基于 ExoPlayer 2.19.1，播放稳定流畅
 
-方式二：替换 `app/src/main/assets/channels.m3u` 后重新打包。
+---
 
-M3U 写法：
+## 📸 截图
 
-```
-#EXTINF:-1 group-title="央视",CCTV-1 综合
-http://example.com/cctv1.m3u8
+<p align="center">
+  <em>主界面 / 频道列表 / 播放画面 / Web 后台</em>
+</p>
 
-#EXTINF:-1 group-title="卫视",湖南卫视
-rtsp://192.168.1.100:554/Streaming/Channels/101
-```
+---
 
-也支持简写（一行一个）：
+## 📲 安装
 
-```
-CCTV-1 综合,http://example.com/cctv1.m3u8
-```
+### 方式一：直接安装 APK
 
-台号按文件里的顺序自动编号（1、2、3…）。
-
-## 构建
+下载 `app-debug.apk`，通过 U 盘或 ADB 安装到电视盒子：
 
 ```bash
-sh gradlew assembleDebug      # 产出 app/build/outputs/apk/debug/app-debug.apk
-```
-
-> 本机 `gradle` 不在 PATH，用 `sh gradlew`。
-> 首次构建约 5 分钟（要下载 ExoPlayer 依赖），之后增量构建几秒。
-
-## 安装到电视
-
-```bash
-# 1. 电视开启「开发者选项 → USB 调试 / 网络调试」
-adb connect 电视IP:5555
 adb install -r app-debug.apk
-
-# 2. 或者把 apk 拷到 U 盘，用电视上的文件管理器安装
 ```
 
-> 后续升级必须用同一份 debug keystore 签名（本机 `~/.android/debug.keystore`，
-> 备份在 `/storage/emulated/0/Download/code/debug.keystore.backup`），否则要卸载重装。
-
-## Android 4.4 的限制
-
-以下几点是老盒子的硬件/系统限制，不是 App 的问题：
-
-1. **H.265/HEVC 频道**：4.4 盒子普遍没有 H.265 硬解，ExoPlayer 也不带软解扩展，这类流会提示「解码失败」。
-   选 H.264 的源即可。
-2. **HTTPS 流**：4.4 的 TLS 栈较老，部分站点会握手失败。优先用 `http://` 的源。
-3. **AV1 / VP9**：老盒子基本不支持。
-4. **64 位/新编码器**：部分盒子解码器对非标准 SPS/PPS 兼容性差，失败时会自动重试 2 次并提示原因。
-
-## 项目结构
-
-```
-app/src/main/java/com/tvlive/app/
-├── MainActivity.java          主界面：OSD、遥控器按键、菜单、弹窗
-├── data/
-│   ├── Channel.java           频道模型（台号/名称/地址/分组）
-│   ├── ChannelStore.java      频道读取与缓存（外部 M3U > 内置 assets）
-│   └── M3uParser.java         极简 M3U 解析器
-├── player/
-│   └── LivePlayer.java        ExoPlayer 封装：协议分流、重试、HLS 兜底、错误中文化
-└── res/                       布局、颜色、图标
-```
-
-## 调试
+### 方式二：从源码构建
 
 ```bash
-adb logcat -s TvLive:I TvLivePlayer:I TvLivePlayer:W
+# 克隆仓库
+git clone https://github.com/<your-username>/subos.git
+cd subos
+
+# 构建
+sh gradlew assembleDebug
+
+# 安装
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-会输出：频道载入数量与来源、每次切台、开始播放的地址、播放就绪、失败原因与错误码。
+### 环境要求
+
+| 依赖 | 版本 |
+|------|------|
+| JDK | 21+ |
+| Android SDK | 34+ |
+| Gradle | 8.13 |
+| Android Gradle Plugin | 8.7.3 |
+| minSdkVersion | 19 |
+| targetSdkVersion | 34 |
+
+---
+
+## 🚀 使用说明
+
+### 1. 导入直播源
+
+速播提供两种导入方式：
+
+**方式 A：Web 后台导入（推荐）**
+
+1. 在电视上打开速播，按菜单键 → 选择「频道导入」
+2. 电视屏幕会显示二维码和本机 IP 地址
+3. 用手机浏览器访问该 IP 地址
+4. 在网页中输入直播源 URL 或上传文件
+5. 点击「获取」预览频道列表
+6. 确认后点击「添加为当前源」
+
+**方式 B：手动输入**
+
+1. 菜单 → 频道导入 → 手动输入直播源地址
+
+### 2. 播放频道
+
+1. 返回主界面，选择频道
+2. 按 OK 键开始播放
+3. 使用遥控器方向键切换频道
+
+### 3. 设置
+
+菜单 → 设置：
+- 自动换源开关
+- 主题切换（跟随系统 / 深色 / 浅色）
+- 多选项箭头导航
+
+---
+
+## 🏗️ 项目结构
+
+```
+subos/
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/tvlive/app/
+│   │   │   ├── MainActivity.java        # 主界面
+│   │   │   ├── ChannelStore.java       # 频道存储
+│   │   │   ├── SourceStore.java        # 源存储
+│   │   │   ├── server/
+│   │   │   │   └── LocalWebServer.java # Web 后台服务
+│   │   │   └── player/
+│   │   │       └── LivePlayer.java     # 播放器
+│   │   ├── res/
+│   │   │   ├── drawable/               # 图标和背景
+│   │   │   ├── layout/                 # 布局文件
+│   │   │   └── values/                 # 字符串和主题
+│   │   └── AndroidManifest.xml
+│   └── build.gradle
+├── build.gradle
+├── settings.gradle
+├── gradle.properties
+├── gradlew
+└── README.md
+```
+
+---
+
+## 🔧 技术栈
+
+| 技术 | 用途 |
+|------|------|
+| Java | 开发语言 |
+| ExoPlayer 2.19.1 | 视频播放器 |
+| NanoHTTPD | Web 后台服务 |
+| Gradle 8.13 / AGP 8.7.3 | 构建工具 |
+| Android Vector Drawable | 图标设计 |
+
+---
+
+## 📜 License
+
+本项目采用 [MIT License](LICENSE) 开源协议。
+
+---
+
+## ⭐ 如果觉得有用
+
+欢迎 Star ⭐ 支持一下！

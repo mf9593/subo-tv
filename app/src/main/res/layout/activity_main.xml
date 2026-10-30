@@ -1,35 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 电视直播主界面：视频画面 + OSD 叠加层 -->
+<!-- 电视直播主界面：全屏视频 + TV 风格叠加层 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg">
 
+    <!-- 视频画面 -->
     <SurfaceView
         android:id="@+id/surface"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- 状态提示（连接中 / 出错 / 无频道） -->
-    <LinearLayout
-        android:id="@+id/statePanel"
+    <!-- 透明触摸层：捕获触屏事件（SurfaceView 在某些设备上不接收触摸） -->
+    <View
+        android:id="@+id/touchLayer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:padding="48dp">
+        android:clickable="true"
+        android:focusable="true"
+        android:background="@android:color/transparent" />
 
-        <TextView
-            android:id="@+id/stateText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:lineSpacingExtra="6dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="18sp" />
-    </LinearLayout>
-
-    <!-- 左上角台标 OSD -->
+    <!-- 左上角换台 OSD 卡片 -->
     <LinearLayout
         android:id="@+id/osdPanel"
         android:layout_width="wrap_content"
@@ -39,71 +30,392 @@
         android:background="@drawable/bg_osd"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="22dp"
-        android:paddingBottom="12dp"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="26dp"
+        android:paddingBottom="14dp"
         android:visibility="gone">
 
         <TextView
             android:id="@+id/osdNumber"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="14dp"
-            android:textColor="@color/accent"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+            android:layout_marginEnd="16dp"
+            android:background="@drawable/bg_channel_num"
+            android:gravity="center"
+            android:minWidth="56dp"
+            android:paddingStart="10dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            style="@style/OsdNumber" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/osdName"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/osdName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="@style/OsdName" />
+
+                <TextView
+                    android:id="@+id/osdGroup"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:background="@drawable/bg_group_header"
+                    android:paddingStart="10dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="3dp"
+                    style="@style/OsdGroup" />
+
+                <!-- 时间 + 分辨率（右上角） -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="20dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/infoResolution"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="12dp"
+                        android:background="@drawable/bg_group_header"
+                        android:paddingStart="10dp"
+                        android:paddingTop="3dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="3dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/clockText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        style="@style/ClockText" />
+                </LinearLayout>
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/osdUrl"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="middle"
-                android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:layout_marginTop="5dp"
+                style="@style/OsdUrl" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 底部临时提示（音量、错误等） -->
+    <!-- 中央状态层（连接中 / 出错 / 无频道） -->
+    <LinearLayout
+        android:id="@+id/statePanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg"
+        android:clickable="false"
+        android:focusable="false"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="48dp"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/stateSpinner"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/accent" />
+
+        <TextView
+            android:id="@+id/stateText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            style="@style/StateText" />
+    </LinearLayout>
+
+    <!-- 底部音量条 -->
+    <LinearLayout
+        android:id="@+id/volumePanel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|bottom"
+        android:layout_marginBottom="44dp"
+        android:background="@drawable/bg_osd"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="音量"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <ProgressBar
+            android:id="@+id/volumeBar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:max="100"
+            android:progressDrawable="@drawable/selector_volume" />
+
+        <TextView
+            android:id="@+id/volumeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/accent"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 底部临时提示 -->
     <TextView
         android:id="@+id/toastText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal|bottom"
-        android:layout_marginBottom="72dp"
+        android:layout_marginBottom="36dp"
         android:background="@drawable/bg_osd"
-        android:paddingStart="20dp"
+        android:paddingStart="22dp"
         android:paddingTop="12dp"
-        android:paddingEnd="20dp"
+        android:paddingEnd="22dp"
         android:paddingBottom="12dp"
-        android:textColor="@color/text_primary"
-        android:textSize="16sp"
+        style="@style/ToastText"
         android:visibility="gone" />
 
-    <!-- 按键说明，常驻底部一行 -->
+    <!-- 按键说明，常驻右下 -->
     <TextView
         android:id="@+id/keyHint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
-        android:layout_margin="16dp"
-        android:alpha="0.45"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="18dp"
+        android:clickable="false"
+        android:focusable="false"
         android:text="@string/key_hint"
-        android:textColor="@color/text_primary"
-        android:textSize="12sp" />
+        style="@style/KeyHint" />
+
+    <!-- ============ 左侧频道列表面板（分类 | 频道 两列） ============ -->
+    <RelativeLayout
+        android:id="@+id/channelPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scrim"
+        android:visibility="gone">
+
+        <!-- 左侧两列面板 -->
+        <LinearLayout
+            android:id="@+id/channelPanelContent"
+            android:layout_width="660dp"
+            android:layout_height="match_parent"
+            android:layout_alignParentStart="true"
+            android:background="@drawable/bg_panel"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical">
+
+            <!-- 面板标题 -->
+            <LinearLayout
+                android:id="@+id/channelPanelHeader"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="@color/group_header_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp">
+
+                <TextView
+                    android:id="@+id/channelPanelTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/channel_list_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/channelCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- 两列：分类 | 频道 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
+
+                <!-- 左列：分类 -->
+                <LinearLayout
+                    android:id="@+id/categoryColumn"
+                    android:layout_width="230dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/panel_bg"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/categoryHeader"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/group_header_bg"
+                        android:paddingStart="18dp"
+                        android:paddingTop="10dp"
+                        android:paddingEnd="18dp"
+                        android:paddingBottom="10dp"
+                        android:text="@string/category_title"
+                        android:textColor="@color/group_header_fg"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <ListView
+                        android:id="@+id/categoryList"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:divider="@color/item_divider"
+                        android:dividerHeight="1dp"
+                        android:listSelector="@android:color/transparent"
+                        android:overScrollMode="never"
+                        android:scrollbars="none" />
+                </LinearLayout>
+
+                <!-- 分隔线 -->
+                <View
+                    android:layout_width="2dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/panel_border" />
+
+                <!-- 右列：频道列表 -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/categoryCurrent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@color/group_header_bg"
+                        android:paddingStart="18dp"
+                        android:paddingTop="10dp"
+                        android:paddingEnd="18dp"
+                        android:paddingBottom="10dp"
+                        android:textColor="@color/group_header_fg"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <ListView
+                        android:id="@+id/channelList"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:divider="@color/item_divider"
+                        android:dividerHeight="1dp"
+                        android:listSelector="@android:color/transparent"
+                        android:overScrollMode="never"
+                        android:scrollbars="none" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- ============ 右侧设置面板 ============ -->
+    <RelativeLayout
+        android:id="@+id/settingsPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scrim"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/settingsPanelContent"
+            android:layout_width="420dp"
+            android:layout_height="match_parent"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/bg_panel"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical">
+
+            <!-- 设置标题 -->
+            <LinearLayout
+                android:id="@+id/settingsPanelHeader"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:background="@color/group_header_bg"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp">
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:background="@drawable/bg_accent_dot" />
+
+                <TextView
+                    android:id="@+id/settingsTitleText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="@string/settings_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- 设置列表 -->
+            <ListView
+                android:id="@+id/settingsList"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:divider="@color/item_divider"
+                android:dividerHeight="1dp"
+                android:listSelector="@android:color/transparent"
+                android:overScrollMode="never"
+                android:scrollbars="none" />
+
+            <!-- 帮助内容（与设置面板同风格，动态加载） -->
+            <FrameLayout
+                android:id="@+id/helpContainer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:visibility="gone" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- 导入弹窗叠加层（替代 Dialog，避免窗口焦点问题） -->
+    <FrameLayout
+        android:id="@+id/importOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scrim"
+        android:visibility="gone" />
 </FrameLayout>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 频道列表分组头 -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/groupHeaderText"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_group_header"
+    android:paddingStart="18dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="10dp"
+    style="@style/GroupHeaderText" />

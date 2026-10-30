@@ -1,8 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#FF0B0F14</color>
-    <color name="osd_bg">#CC000000</color>
+    <!-- 主背景渐变 -->
+    <color name="bg">#FF0B0F16</color>
+    <color name="bg_top">#FF141C28</color>
+    <color name="bg_mid">#FF0B0F16</color>
+    <color name="bg_bottom">#FF05070B</color>
+
+    <!-- 面板 / 遮罩 -->
+    <color name="panel_bg">#F012161E</color>
+    <color name="panel_border">#FF232C3A</color>
+    <color name="scrim">#99000000</color>
+    <color name="osd_bg">#E6100F14</color>
+
+    <!-- 文本 -->
     <color name="text_primary">#FFFFFFFF</color>
     <color name="text_secondary">#B3FFFFFF</color>
+    <color name="text_tertiary">#66FFFFFF</color>
+
+    <!-- 主题色 -->
     <color name="accent">#FF00DAC5</color>
+    <color name="accent_dim">#4D00DAC5</color>
+    <color name="accent_dark">#FF00A89A</color>
+
+    <!-- 频道号色块 -->
+    <color name="channel_num_bg">#FF1B2431</color>
+    <color name="channel_num_fg">#FF00DAC5</color>
+    <color name="channel_num_fg_sel">#FF05110F</color>
+
+    <!-- 分组头 -->
+    <color name="group_header_bg">#FF1A222E</color>
+    <color name="group_header_fg">#FF00DAC5</color>
+
+    <!-- 列表项状态 -->
+    <color name="item_focus">#3300DAC5</color>
+    <color name="item_selected">#2600DAC5</color>
+    <color name="item_divider">#14FFFFFF</color>
+
+    <!-- 音量条 -->
+    <color name="volume_track">#4DFFFFFF</color>
+    <color name="volume_progress">#FF00DAC5</color>
+
+    <!-- 状态色 -->
+    <color name="status_ok">#FF4CD964</color>
+    <color name="status_warn">#FFFFC107</color>
+    <color name="status_error">#FFFF5C5C</color>
+
+    <!-- 聚焦行深色文字（主题色背景上的文字颜色） -->
+    <color name="text_on_accent">#FF05110F</color>
+    <!-- 频道号/标签默认深色文字 -->
+    <color name="text_tag_fg">#FF141A26</color>
 </resources>

@@ -1,13 +1,18 @@
+# Build
+/build/
+/app/build/
+/.gradle/
+/local.properties
+/.idea/
 *.iml
-.gradle/
-local.properties
-.idea/
-.DS_Store
-build/
-captures/
-.externalNativeBuild
-.cxx
 *.apk
-*.aab
-*.keystore
-keystore.properties
+*.ap_
+*.dex
+/captures/
+.DS_Store
+
+# IDE
+.vscode/
+.project
+.classpath
+.settings/
