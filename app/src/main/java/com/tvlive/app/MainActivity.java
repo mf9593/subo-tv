@@ -245,31 +245,30 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         importDialog = new ImportDialog(this, new ImportDialog.Listener() {
             @Override
             public void onSourcesChanged() {
-                // 源变化后重新载入频道
                 reloadChannels();
             }
 
             @Override
             public void onImportClosed() {
-                // 延迟请求焦点，确保弹窗完全关闭后按键正常
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
                         View touch = findViewById(R.id.touchLayer);
                         if (touch != null) touch.requestFocus();
-                        // 同时请求根视图焦点
                         getWindow().getDecorView().requestFocus();
                     }
                 }, 300);
             }
         });
+        // 初始化叠加层（替代 Dialog）
+        android.widget.FrameLayout overlay = (android.widget.FrameLayout) findViewById(R.id.importOverlay);
+        if (overlay != null) importDialog.init(overlay);
         webServer = new com.tvlive.app.server.LocalWebServer(this,
                 new com.tvlive.app.server.LocalWebServer.Callback() {
                     @Override
                     public void onSourceSubmitted(String name, String url, String text) {
                         SourceStore.add(MainActivity.this, name, url, text);
                         showToast("已从后台添加源：" + name);
-                        // 若导入弹窗打开，刷新其源列表
                         if (importDialog != null) importDialog.refresh();
                         reloadChannels();
                     }
@@ -460,6 +459,11 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // 导入弹窗（叠加层）打开时，按键交给 ImportDialog 处理并消费
+        if (isImportOpen() && importDialog != null) {
+            importDialog.onKey(event.getKeyCode(), event);
+            return true;
+        }
         int keyCode = event.getKeyCode();
         boolean isOk = keyCode == KeyEvent.KEYCODE_DPAD_CENTER
                 || keyCode == KeyEvent.KEYCODE_ENTER
@@ -658,6 +662,11 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         return hc != null && hc.getVisibility() == View.VISIBLE;
     }
 
+    private boolean isImportOpen() {
+        android.widget.FrameLayout ov = (android.widget.FrameLayout) findViewById(R.id.importOverlay);
+        return ov != null && ov.getVisibility() == View.VISIBLE;
+    }
+
     private boolean anyPanelOpen() {
         return isChannelPanelOpen() || isSettingsPanelOpen();
     }
@@ -787,6 +796,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (isImportOpen()) return true;
         if (isSettingsPanelOpen()) {
             return onSettingsKey(keyCode, event);
         }
@@ -1818,8 +1828,9 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 livePlayer.nextSource();
                 break;
             case 5: // 频道导入
+                closeSettingsPanel();
                 openImportDialog();
-                break;
+                return; // 已关闭面板，不重复关闭
             case 6: // 重新载入
                 reloadChannels();
                 break;

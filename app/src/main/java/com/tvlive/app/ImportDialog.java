@@ -1,7 +1,6 @@
 package com.tvlive.app;
 
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
@@ -49,24 +48,30 @@ public class ImportDialog {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<SourceStore.Source> sources = new ArrayList<SourceStore.Source>();
 
-    private Dialog dialog;
+    private android.widget.FrameLayout overlay;
     private View rootView;
     private EditText input;
     private TextView result;
     private ListView sourceList;
     private SavedAdapter adapter;
-    private String fetchedUrl = null;   // 最近获取成功的地址
-    private String fetchedText = null;  // 最近获取成功的内容
-    private long okDownTime = 0L;       // OK 键按下时间（区分短按切换/长按删除）
+    private String fetchedUrl = null;
+    private String fetchedText = null;
+    private long okDownTime = 0L;
 
     public ImportDialog(Context context, Listener listener) {
         this.context = context;
         this.listener = listener;
     }
 
+    /** 初始化叠加层容器（替代 Dialog） */
+    public void init(android.widget.FrameLayout overlay) {
+        this.overlay = overlay;
+    }
+
     public void show(String webUrl) {
-        adapter = null;          // 每次 show 用新的 ListView，需重建 Adapter
-        rootView = LayoutInflater.from(context).inflate(R.layout.dialog_import, null);
+        if (overlay == null) return;
+        adapter = null;
+        rootView = LayoutInflater.from(context).inflate(R.layout.dialog_import, overlay, false);
         View view = rootView;
         input = (EditText) view.findViewById(R.id.importInput);
         result = (TextView) view.findViewById(R.id.importResult);
@@ -127,18 +132,14 @@ public class ImportDialog {
             });
         }
 
-        dialog = new Dialog(context);
-        dialog.setContentView(view);
-        dialog.setCancelable(true);
-        dialog.setCanceledOnTouchOutside(true);
-        // 弹窗关闭时通知恢复播放 + 清除按键监听 + 请求焦点
-        dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-            @Override
-            public void onDismiss(DialogInterface di) {
-                dialog.setOnKeyListener(null);
-                if (listener != null) listener.onImportClosed();
-            }
-        });
+        // 添加到叠加层并显示
+        overlay.removeAllViews();
+        overlay.addView(rootView);
+        overlay.setFocusable(true);
+        overlay.setFocusableInTouchMode(false);
+        overlay.setClickable(true);
+        overlay.setVisibility(View.VISIBLE);
+
         // 自定义关闭按钮
         Button closeBtn = (Button) view.findViewById(R.id.importClose);
         if (closeBtn != null) {
@@ -148,41 +149,12 @@ public class ImportDialog {
             closeBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    dialog.dismiss();
+                    dismiss();
                 }
             });
         }
-        try {
-            dialog.show();
-        } catch (Throwable t) {
-            // 某些 TV 上 show() 内部系统调用（isDreaming）偶发异常，忽略并继续
-            android.util.Log.w("ImportDialog", "show: " + t);
-        }
-        // 弹窗窗口大小：宽度限制 800dp 以内，高度 85%
-        try {
-            android.util.DisplayMetrics dm = context.getResources().getDisplayMetrics();
-            float density = dm.density;
-            int maxW = (int) (800 * density);
-            int w = (int) (dm.widthPixels * 0.9f);
-            if (w > maxW) w = maxW;
-            int h = (int) (dm.heightPixels * 0.85f);
-            dialog.getWindow().setLayout(w, h);
-            // 去除黑边：透明背景 + 零内边距
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-            dialog.getWindow().getDecorView().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-            dialog.getWindow().getDecorView().setPadding(0, 0, 0, 0);
-            // 内容视图填满窗口
-            android.view.ViewGroup.LayoutParams lp = rootView.getLayoutParams();
-            if (lp == null) {
-                lp = new android.view.ViewGroup.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT);
-            }
-            rootView.setLayoutParams(lp);
-        } catch (Throwable ignored) {
-        }
 
-        // 源列表用标准 D-pad 导航（焦点在列表上，item 不聚焦）
+        // 源列表 D-pad 导航
         sourceList.setFocusable(true);
         sourceList.setFocusableInTouchMode(false);
         sourceList.setItemsCanFocus(false);
@@ -190,16 +162,13 @@ public class ImportDialog {
         sourceList.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                // 立即刷新高亮，避免滚动时延迟
                 sourceList.invalidateViews();
             }
-
             @Override
             public void onNothingSelected(android.widget.AdapterView<?> parent) {
                 sourceList.invalidateViews();
             }
         });
-        // 获得焦点时选中第一项，保证光标高亮可见
         sourceList.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
@@ -212,24 +181,22 @@ public class ImportDialog {
             }
         });
 
-        // 按钮/输入框可聚焦（遥控器高亮）
+        // 按钮/输入框可聚焦
         check.setFocusable(true);
         fetch.setFocusable(true);
         save.setFocusable(true);
         input.setFocusable(true);
         int accent = ThemeManager.accent();
-        // 标题文字颜色（跟随主题）
         TextView title = (TextView) view.findViewById(R.id.importTitle);
         if (title != null) title.setTextColor(accent);
         check.setTextColor(accent);
         fetch.setTextColor(accent);
         save.setTextColor(accent);
-        // 按钮/输入框背景：用主题色 StateListDrawable 替代 XML bg_button/bg_input
         check.setBackgroundDrawable(ThemeManager.buttonBg(context));
         fetch.setBackgroundDrawable(ThemeManager.buttonBg(context));
         save.setBackgroundDrawable(ThemeManager.buttonBg(context));
         input.setBackgroundDrawable(ThemeManager.buttonBg(context));
-        // 二维码卡片背景 + 提示文字颜色（卡片现在是垂直布局，提示文字在二维码下方）
+
         LinearLayout qrCard = (LinearLayout) view.findViewById(R.id.importQr).getParent();
         if (qrCard != null) qrCard.setBackgroundDrawable(ThemeManager.cardBg(context));
         if (qrCard != null) {
@@ -237,7 +204,6 @@ public class ImportDialog {
                 View child = qrCard.getChildAt(i);
                 if (child instanceof TextView) {
                     String hint = context.getString(R.string.import_qr_hint);
-                    String desc = context.getString(R.string.import_qr_desc);
                     String text = ((TextView) child).getText().toString();
                     if (text.equals(hint)) {
                         ((TextView) child).setTextColor(accent);
@@ -245,10 +211,8 @@ public class ImportDialog {
                 }
             }
         }
-        // 结果文字颜色
         result.setTextColor(accent);
 
-        // 关闭按钮：加自定义背景（含聚焦高亮），可聚焦
         final Button close = (Button) rootView.findViewById(R.id.importClose);
         if (close != null) {
             close.setBackgroundDrawable(ThemeManager.buttonBg(context));
@@ -256,149 +220,142 @@ public class ImportDialog {
             close.setFocusable(true);
         }
 
-        // 默认聚焦输入框（便于输入，且有高亮边框）
-        input.requestFocus();
-        try {
-            InputMethodManager imm = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) imm.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT);
-        } catch (Throwable ignored) {
-        }
+        // 默认聚焦输入框（延迟确保叠加层已显示）
+        rootView.post(new Runnable() {
+            @Override
+            public void run() {
+                input.requestFocus();
+            }
+        });
 
         refreshSources();
-        setupDialogKeys();
+    }
+
+    public void dismiss() {
+        if (overlay != null) {
+            overlay.setVisibility(View.GONE);
+            overlay.removeAllViews();
+        }
+        if (listener != null) listener.onImportClosed();
+    }
+
+    public boolean isShowing() {
+        return overlay != null && overlay.getVisibility() == View.VISIBLE;
     }
 
     /** 外部（如 Web 后台添加源后）刷新源列表 */
     public void refresh() {
-        if (sourceList == null) return; // 弹窗未打开时无需刷新
+        if (!isShowing()) return;
         refreshSources();
     }
 
-    /** 弹窗内方向键导航：输入框 → 按钮行 → 已保存源列表 */
-    private void setupDialogKeys() {
-        dialog.setOnKeyListener(new DialogInterface.OnKeyListener() {
-            @Override
-            public boolean onKey(android.content.DialogInterface d, int keyCode, android.view.KeyEvent event) {
-                switch (keyCode) {
-                    case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
-                        if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
-                        // 焦点在源列表：放行给 ListView 自己移动选中项
-                        if (isOnSourceList()) return false;
-                        moveFocusDown();
+    /** 按键处理：由 MainActivity.dispatchKeyEvent 调用 */
+    public boolean onKey(int keyCode, android.view.KeyEvent event) {
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
+                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                if (isOnSourceList()) return false;
+                moveFocusDown();
+                return true;
+            case android.view.KeyEvent.KEYCODE_DPAD_UP:
+                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                if (isOnSourceList()) return false;
+                moveFocusUp();
+                return true;
+            case android.view.KeyEvent.KEYCODE_DPAD_CENTER:
+            case android.view.KeyEvent.KEYCODE_ENTER:
+            case android.view.KeyEvent.KEYCODE_NUMPAD_ENTER:
+                if (sourceList != null && sourceList.hasFocus()) {
+                    int pos = sourceList.getSelectedItemPosition();
+                    if (pos < 0 || pos >= sources.size()) return true;
+                    if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+                        if (event.getRepeatCount() > 0) {
+                            confirmDelete(sources.get(pos));
+                            return true;
+                        }
+                        okDownTime = SystemClock.uptimeMillis();
                         return true;
-                    case android.view.KeyEvent.KEYCODE_DPAD_UP:
-                        if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
-                        // 焦点在源列表：放行给 ListView 自己移动选中项
-                        if (isOnSourceList()) return false;
-                        moveFocusUp();
+                    } else if (event.getAction() == android.view.KeyEvent.ACTION_UP) {
+                        if (SystemClock.uptimeMillis() - okDownTime < 500) {
+                            SourceStore.Source s = sources.get(pos);
+                            SourceStore.setActive(context, s.id);
+                            refreshSources();
+                            if (listener != null) listener.onSourcesChanged();
+                            setResult("已切换为：" + s.name);
+                        }
                         return true;
-                    case android.view.KeyEvent.KEYCODE_DPAD_CENTER:
-                    case android.view.KeyEvent.KEYCODE_ENTER:
-                    case android.view.KeyEvent.KEYCODE_NUMPAD_ENTER:
-                        if (sourceList != null && sourceList.hasFocus()) {
-                            int pos = sourceList.getSelectedItemPosition();
-                            if (pos < 0 || pos >= sources.size()) return true;
-                            if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
-                                // 长按 OK（repeatCount>0）删除当前源
-                                if (event.getRepeatCount() > 0) {
-                                    confirmDelete(sources.get(pos));
-                                    return true;
-                                }
-                                // 首次 DOWN：记录按下时间，UP 时判断是否短按
-                                okDownTime = SystemClock.uptimeMillis();
-                                return true;
-                            } else if (event.getAction() == android.view.KeyEvent.ACTION_UP) {
-                                // 短按（按下 < 500ms）切换激活；长按不切换
-                                if (SystemClock.uptimeMillis() - okDownTime < 500) {
-                                    SourceStore.Source s = sources.get(pos);
-                                    SourceStore.setActive(context, s.id);
-                                    refreshSources();
-                                    if (listener != null) listener.onSourcesChanged();
-                                    setResult("已切换为：" + s.name);
-                                }
-                                return true;
-                            }
-                        }
-                        // OK 在「关闭」按钮上：关闭弹窗
-                        View cur = dialog.getCurrentFocus();
-                        if (cur != null && cur.getId() == R.id.importClose) {
-                            d.dismiss();
-                            return true;
-                        }
-                        // OK 在其他按钮上：触发点击
-                        if (cur instanceof Button) {
-                            ((Button) cur).callOnClick();
-                            return true;
-                        }
-                        return false;
-                    case android.view.KeyEvent.KEYCODE_MENU:
-                        // 源列表聚焦时，菜单键删除当前选中源（遥控器友好）
-                        if (isOnSourceList()) {
-                            int pos = sourceList.getSelectedItemPosition();
-                            if (pos >= 0 && pos < sources.size()) {
-                                confirmDelete(sources.get(pos));
-                                return true;
-                            }
-                        }
-                        return false;
-                    case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
-                        if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
-                        // 左面板 → 右面板（源列表）
-                        if (!isOnSourceList()) {
-                            focusSourceList();
-                            return true;
-                        }
-                        return false;
-                    case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
-                        if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
-                        // 右面板（源列表）→ 左面板最后一个按钮
-                        if (isOnSourceList()) {
-                            View clean = dialog.findViewById(R.id.importClean);
-                            if (clean != null) clean.requestFocus();
-                            return true;
-                        }
-                        return false;
-                    case android.view.KeyEvent.KEYCODE_BACK:
-                        d.dismiss();
-                        return true;
-                    default:
-                        return false;
+                    }
                 }
-            }
-        });
+                View cur = rootView.findFocus();
+                if (cur != null && cur.getId() == R.id.importClose) {
+                    dismiss();
+                    return true;
+                }
+                if (cur instanceof Button) {
+                    ((Button) cur).callOnClick();
+                    return true;
+                }
+                return false;
+            case android.view.KeyEvent.KEYCODE_MENU:
+                if (isOnSourceList()) {
+                    int pos = sourceList.getSelectedItemPosition();
+                    if (pos >= 0 && pos < sources.size()) {
+                        confirmDelete(sources.get(pos));
+                        return true;
+                    }
+                }
+                return false;
+            case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
+                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                if (!isOnSourceList()) {
+                    focusSourceList();
+                    return true;
+                }
+                return false;
+            case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
+                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                if (isOnSourceList()) {
+                    View clean = rootView.findViewById(R.id.importClean);
+                    if (clean != null) clean.requestFocus();
+                    return true;
+                }
+                return false;
+            case android.view.KeyEvent.KEYCODE_BACK:
+                dismiss();
+                return true;
+            default:
+                return false;
+        }
     }
 
     /** 当前焦点是否在源列表上 */
     private boolean isOnSourceList() {
-        View cur = dialog.getCurrentFocus();
+        View cur = rootView != null ? rootView.findFocus() : null;
         return cur == sourceList || (cur != null && cur.getId() == R.id.importSourceList);
     }
 
     private void moveFocusDown() {
-        View current = dialog.getCurrentFocus();
-        android.util.Log.d("ImportDialog", "moveFocusDown cur="
-                + (current != null ? current.getId() : -1));
+        View current = rootView != null ? rootView.findFocus() : null;
         if (current == null) {
             input.requestFocus();
             return;
         }
         if (current.getId() == R.id.importInput) {
-            View check = dialog.findViewById(R.id.importCheck);
+            View check = rootView.findViewById(R.id.importCheck);
             if (check != null) check.requestFocus();
         } else if (current.getId() == R.id.importCheck) {
-            View fetch = dialog.findViewById(R.id.importFetch);
+            View fetch = rootView.findViewById(R.id.importFetch);
             if (fetch != null) fetch.requestFocus();
         } else if (current.getId() == R.id.importFetch) {
-            View save = dialog.findViewById(R.id.importSave);
+            View save = rootView.findViewById(R.id.importSave);
             if (save != null) save.requestFocus();
         } else if (current.getId() == R.id.importSave) {
-            View clean = dialog.findViewById(R.id.importClean);
+            View clean = rootView.findViewById(R.id.importClean);
             if (clean != null) clean.requestFocus();
         } else if (current.getId() == R.id.importClean) {
             focusSourceList();
         } else if (current == sourceList) {
-            // 源列表 → 关闭按钮
-            View close = dialog.findViewById(R.id.importClose);
+            View close = rootView.findViewById(R.id.importClose);
             if (close != null) close.requestFocus();
         }
     }
@@ -413,34 +370,30 @@ public class ImportDialog {
                     sourceList.setSelection(0);
                 }
                 sourceList.invalidateViews();
-                android.util.Log.d("ImportDialog", "focusSourceList requestFocus=" + ok
-                        + " sel=" + sourceList.getSelectedItemPosition()
-                        + " cur=" + (dialog.getCurrentFocus() != null ? dialog.getCurrentFocus().getId() : -1));
             }
         });
     }
 
     private void moveFocusUp() {
-        View current = dialog.getCurrentFocus();
+        View current = rootView != null ? rootView.findFocus() : null;
         if (current == null) {
             input.requestFocus();
             return;
         }
         if (current == sourceList) {
-            View clean = dialog.findViewById(R.id.importClean);
+            View clean = rootView.findViewById(R.id.importClean);
             if (clean != null) clean.requestFocus();
         } else if (current.getId() == R.id.importClose) {
-            // 关闭按钮 → 源列表
             focusSourceList();
             focusSourceList();
         } else if (current.getId() == R.id.importClean) {
-            View save = dialog.findViewById(R.id.importSave);
+            View save = rootView.findViewById(R.id.importSave);
             if (save != null) save.requestFocus();
         } else if (current.getId() == R.id.importSave) {
-            View fetch = dialog.findViewById(R.id.importFetch);
+            View fetch = rootView.findViewById(R.id.importFetch);
             if (fetch != null) fetch.requestFocus();
         } else if (current.getId() == R.id.importFetch) {
-            View check = dialog.findViewById(R.id.importCheck);
+            View check = rootView.findViewById(R.id.importCheck);
             if (check != null) check.requestFocus();
         } else {
             input.requestFocus();
@@ -835,7 +788,7 @@ public class ImportDialog {
     private void hideKeyboard() {
         try {
             InputMethodManager imm = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null && dialog != null) {
+            if (imm != null && input != null) {
                 imm.hideSoftInputFromWindow(input.getWindowToken(), 0);
             }
         } catch (Throwable ignored) {
