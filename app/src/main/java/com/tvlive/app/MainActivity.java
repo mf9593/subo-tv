@@ -225,6 +225,20 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         channels.clear();
         channels.addAll(loaded);
 
+        // Web 后台 + 导入弹窗：即使无频道也要初始化，否则无法导入
+        setupWebServer();
+
+        // 调试：通过 intent extra 直接打开导入弹窗（adb am start 触发）
+        if (getIntent().hasExtra("action") && "open_import".equals(getIntent().getStringExtra("action"))) {
+            new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    android.util.Log.d("MainActivity", "DEBUG: opening import dialog");
+                    openImportDialog();
+                }
+            }, 1000);
+        }
+
         if (channels.isEmpty()) {
             if (livePlayer != null) livePlayer.release();
             showState(getString(R.string.no_channel), false);
@@ -235,8 +249,6 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         int index = prefs.getInt(KEY_LAST_INDEX, 0);
         if (index < 0 || index >= channels.size()) index = 0;
         switchTo(index, true);
-
-        setupWebServer();
     }
 
     /* ==================== Web 后台（频道导入） ==================== */
@@ -262,7 +274,12 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         });
         // 初始化叠加层（替代 Dialog）
         android.widget.FrameLayout overlay = (android.widget.FrameLayout) findViewById(R.id.importOverlay);
-        if (overlay != null) importDialog.init(overlay);
+        if (overlay != null) {
+            importDialog.init(overlay);
+            android.util.Log.d("MainActivity", "setupWebServer: importOverlay initialized");
+        } else {
+            android.util.Log.e("MainActivity", "setupWebServer: importOverlay not found!");
+        }
         webServer = new com.tvlive.app.server.LocalWebServer(this,
                 new com.tvlive.app.server.LocalWebServer.Callback() {
                     @Override
@@ -278,8 +295,9 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
     /** 打开频道导入弹窗 */
     private void openImportDialog() {
-        if (importDialog == null) return;
+        if (importDialog == null) { android.util.Log.e("MainActivity", "openImportDialog: importDialog is null"); return; }
         String url = webServer != null ? webServer.baseUrl() : "";
+        android.util.Log.d("MainActivity", "openImportDialog: calling show, url=" + url);
         importDialog.show(url);
     }
 
@@ -461,6 +479,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     public boolean dispatchKeyEvent(KeyEvent event) {
         // 导入弹窗（叠加层）打开时，按键交给 ImportDialog 处理并消费
         if (isImportOpen() && importDialog != null) {
+            android.util.Log.d("MainActivity", "dispatchKeyEvent: import overlay open, key=" + event.getKeyCode());
             importDialog.onKey(event.getKeyCode(), event);
             return true;
         }
@@ -1828,6 +1847,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 livePlayer.nextSource();
                 break;
             case 5: // 频道导入
+                android.util.Log.d("MainActivity", "onSettingClick: case 5 IMPORT");
                 closeSettingsPanel();
                 openImportDialog();
                 return; // 已关闭面板，不重复关闭

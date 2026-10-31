@@ -11,6 +11,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -69,7 +70,8 @@ public class ImportDialog {
     }
 
     public void show(String webUrl) {
-        if (overlay == null) return;
+        if (overlay == null) { android.util.Log.e("ImportDialog", "show: overlay is null, abort"); return; }
+        android.util.Log.d("ImportDialog", "show: called, webUrl=" + webUrl);
         adapter = null;
         rootView = LayoutInflater.from(context).inflate(R.layout.dialog_import, overlay, false);
         View view = rootView;
@@ -139,6 +141,33 @@ public class ImportDialog {
         overlay.setFocusableInTouchMode(false);
         overlay.setClickable(true);
         overlay.setVisibility(View.VISIBLE);
+        android.util.Log.d("ImportDialog", "show: overlay set VISIBLE");
+
+        // 先让 overlay 拿焦点，再交给子视图（高版本 Android 需要先父后子）
+        overlay.requestFocus();
+
+        // 默认聚焦输入框（延迟确保叠加层已显示 + 已布局）
+        final View treeView = rootView;
+        rootView.getViewTreeObserver().addOnGlobalLayoutListener(
+                new ViewTreeObserver.OnGlobalLayoutListener() {
+                    boolean focused = false;
+                    @Override
+                    public void onGlobalLayout() {
+                        if (focused) return;
+                        if (treeView.getWidth() > 0 && treeView.getHeight() > 0) {
+                            focused = true;
+                            treeView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                            // 先尝试 overlay.post，再用 requestFocus
+                            overlay.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    input.requestFocus();
+                                    android.util.Log.d("ImportDialog", "show: input.requestFocus done");
+                                }
+                            });
+                        }
+                    }
+                });
 
         // 自定义关闭按钮
         Button closeBtn = (Button) view.findViewById(R.id.importClose);
