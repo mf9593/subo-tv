@@ -223,6 +223,7 @@ public class LivePlayer {
     }
 
     private ExoPlayer player;
+    private android.media.session.MediaSession mediaSession;
     private SurfaceView surfaceView;
     private String currentName;
     /** 当前频道的所有源 */
@@ -576,6 +577,16 @@ public class LivePlayer {
             } catch (Throwable ignored) {
             }
         }
+
+        // Android 12+ 需要 MediaSession 才能正常路由音频输出
+        // 否则 AudioTrack 可能 deviceIds 为空导致无声
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            try {
+                mediaSession = new android.media.session.MediaSession(context, "TvLivePlayer");
+            } catch (Throwable t) {
+                Log.w(TAG, "MediaSession 创建失败: " + t);
+            }
+        }
     }
 
     private void releasePlayer() {
@@ -589,6 +600,13 @@ public class LivePlayer {
         } catch (Throwable ignored) {
         }
         player = null;
+        if (mediaSession != null) {
+            try {
+                mediaSession.release();
+            } catch (Throwable ignored) {
+            }
+            mediaSession = null;
+        }
     }
 
     /** 按协议选 MediaSource：rtsp 走 RTSP，m3u8 走 HLS，udpxy 走渐进式+TS，其余走渐进式 */

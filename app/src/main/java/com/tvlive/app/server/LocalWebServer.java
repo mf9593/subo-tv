@@ -526,7 +526,7 @@ public class LocalWebServer {
         html.append("<div class=\"tip\" style=\"margin-top:6px\">② 也可在电视上：菜单 → 频道导入，手动输入地址</div>");
         html.append("</div>");
 
-        html.append("<div class=\"footer\">TvLive · 源后台 · 仅供测试 · <span>电视直播</span></div>");
+        html.append("<div class=\"footer\">速播 · 源后台 · 仅供测试 · <span>电视直播</span></div>");
 
         html.append("<script>");
         html.append("function add(){var u=document.getElementById('url').value.trim();if(!u)return alert('请先输入直播源地址');");

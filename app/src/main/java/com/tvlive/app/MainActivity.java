@@ -3,6 +3,7 @@ package com.tvlive.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
@@ -229,12 +230,28 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         setupWebServer();
 
         // 调试：通过 intent extra 直接打开导入弹窗（adb am start 触发）
-        if (getIntent().hasExtra("action") && "open_import".equals(getIntent().getStringExtra("action"))) {
+        if (getIntent().hasExtra("action")) {
+            String action = getIntent().getStringExtra("action");
+            final String act = action;
             new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    android.util.Log.d("MainActivity", "DEBUG: opening import dialog");
-                    openImportDialog();
+                    if ("open_import".equals(act)) {
+                        android.util.Log.d("MainActivity", "DEBUG: opening import dialog");
+                        openImportDialog();
+                    } else if ("open_channels".equals(act)) {
+                        android.util.Log.d("MainActivity", "DEBUG: opening channel panel");
+                        openChannelPanel();
+                    } else if ("open_settings".equals(act)) {
+                        android.util.Log.d("MainActivity", "DEBUG: opening settings panel");
+                        openSettingsPanel();
+                    } else if ("show_debug".equals(act)) {
+                        android.util.Log.d("MainActivity", "DEBUG: showing debug overlay");
+                        if (isDebuggable()) {
+                            TextView dbg = findViewById(R.id.debugInfo);
+                            if (dbg != null) dbg.setVisibility(View.VISIBLE);
+                        }
+                    }
                 }
             }, 1000);
         }
@@ -550,7 +567,9 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     /** 设置频道/设置面板宽度为屏幕的 50% */
     private void setPanelWidths() {
         int screenW = getResources().getDisplayMetrics().widthPixels;
-        int w = screenW / 2;
+        // 面板宽度：大屏 55%，小屏 50%，给文字更多空间
+        int w = (int) (screenW * 0.55f);
+        if (screenW < 1920) w = screenW / 2;
         if (channelPanelContent != null) {
             channelPanelContent.getLayoutParams().width = w;
             channelPanelContent.requestLayout();
@@ -559,13 +578,13 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
             settingsPanelContent.getLayoutParams().width = w;
             settingsPanelContent.requestLayout();
         }
-        // 分类列宽度：面板宽度的 38%，限制 90~220dp
+        // 分类列宽度：面板宽度的 35%，限制 90~220dp
         View categoryCol = findViewById(R.id.categoryColumn);
         if (categoryCol != null) {
             float density = getResources().getDisplayMetrics().density;
             int minDp = (int) (90 * density);
             int maxDp = (int) (220 * density);
-            int catW = (int) (w * 0.38f);
+            int catW = (int) (w * 0.35f);
             if (catW < minDp) catW = minDp;
             if (catW > maxDp) catW = maxDp;
             categoryCol.getLayoutParams().width = catW;
@@ -1108,6 +1127,8 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
     @Override
     public void onStateChanged(int state, String channelName) {
+        // 调试信息更新
+        updateDebugInfo(state, channelName);
         if (state == LivePlayer.STATE_PLAYING) {
             hideState();
             // 顶部状态栏已移除，频道信息在左上角 OSD 卡片显示
@@ -1147,6 +1168,40 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     public void onVideoSizeChanged(int width, int height) {
         if (osdResolution != null) {
             osdResolution.setText(width + "×" + height);
+        }
+    }
+
+    private void updateDebugInfo(int state, String channelName) {
+        if (!isDebuggable()) return;
+        TextView dbg = findViewById(R.id.debugInfo);
+        if (dbg == null) return;
+        String stateStr;
+        switch (state) {
+            case LivePlayer.STATE_PLAYING: stateStr = "播放中"; break;
+            case LivePlayer.STATE_CONNECTING: stateStr = "连接中"; break;
+            default: stateStr = "状态=" + state; break;
+        }
+        String audioInfo = "";
+        try {
+            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+            if (am != null) {
+                int mode = am.getMode();
+                int vol = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                int maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                audioInfo = " | 音量=" + vol + "/" + maxVol;
+                audioInfo += " | 模式=" + mode;
+            }
+        } catch (Throwable ignored) {}
+        dbg.setText("[" + stateStr + "] " + (channelName == null ? "" : channelName) + audioInfo);
+        dbg.setVisibility(View.VISIBLE);
+    }
+
+    private boolean isDebuggable() {
+        try {
+            ApplicationInfo info = getApplicationInfo();
+            return (info.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        } catch (Throwable t) {
+            return false;
         }
     }
 
