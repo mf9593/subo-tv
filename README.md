@@ -46,8 +46,8 @@ adb install -r app-debug.apk
 
 ```bash
 # 克隆仓库
-git clone https://github.com/<your-username>/subos.git
-cd subos
+git clone https://github.com/mf9593/subo-tv.git
+cd subo-tv
 
 # 构建
 sh gradlew assembleDebug
@@ -106,7 +106,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 🏗️ 项目结构
 
 ```
-subos/
+subo-tv/
 ├── app/
 │   ├── src/main/
 │   │   ├── java/com/tvlive/app/

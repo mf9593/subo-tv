@@ -408,6 +408,20 @@
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:visibility="gone" />
+
+            <!-- 底部版本号 -->
+            <TextView
+                android:id="@+id/settingsVersion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="14dp"
+                android:textColor="@color/text_tertiary"
+                android:textSize="13sp"
+                android:visibility="gone" />
         </LinearLayout>
     </RelativeLayout>
 

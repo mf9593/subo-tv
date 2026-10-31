@@ -1,7 +1,10 @@
 package com.tvlive.app;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -109,6 +112,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     private View settingsPanel;
     private View settingsPanelContent;
     private ListView settingsList;
+    private TextView settingsVersion;
 
     private LivePlayer livePlayer;
     private GestureDetector gestureDetector;
@@ -130,6 +134,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     private static final int THEME = 10;
     private static final int SOURCE_MEMORY = 11;
     private static final int HELP = 12;
+    private static final int CHECK_UPDATE = 13;
     private final List<Channel> channels = new ArrayList<Channel>();
     private final List<String> categories = new ArrayList<String>();
     private int currentCategory = 0;
@@ -330,6 +335,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         settingsPanel = findViewById(R.id.settingsPanel);
         settingsPanelContent = findViewById(R.id.settingsPanelContent);
         settingsList = (ListView) findViewById(R.id.settingsList);
+        settingsVersion = (TextView) findViewById(R.id.settingsVersion);
         // 面板遮罩区域点击关闭面板
         channelPanel.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -636,6 +642,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         FrameLayout helpContainer = (FrameLayout) findViewById(R.id.helpContainer);
         if (helpContainer != null) helpContainer.setVisibility(View.GONE);
         if (settingsList != null) settingsList.setVisibility(View.VISIBLE);
+        if (settingsVersion != null) settingsVersion.setVisibility(View.GONE);
     }
 
     private boolean isChannelPanelOpen() {
@@ -667,6 +674,12 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         FrameLayout helpContainer = (FrameLayout) findViewById(R.id.helpContainer);
         if (helpContainer != null) helpContainer.setVisibility(View.GONE);
         if (settingsList != null) settingsList.setVisibility(View.VISIBLE);
+        // 显示版本号
+        if (settingsVersion != null) {
+            String ver = getVersionName();
+            settingsVersion.setText(getString(R.string.settings_version, ver));
+            settingsVersion.setVisibility(View.VISIBLE);
+        }
         settingsList.setAdapter(new SettingsAdapter());
         settingsList.setSelection(0);
         settingsList.requestFocus();
@@ -1427,6 +1440,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
         // 隐藏设置列表，显示帮助内容
         if (settingsList != null) settingsList.setVisibility(View.GONE);
+        if (settingsVersion != null) settingsVersion.setVisibility(View.GONE);
         FrameLayout helpContainer = (FrameLayout) findViewById(R.id.helpContainer);
         if (helpContainer == null) return;
         helpContainer.removeAllViews();
@@ -1608,7 +1622,8 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 getString(R.string.settings_key_hint),
                 getString(R.string.settings_theme),
                 getString(R.string.settings_source_memory),
-                getString(R.string.settings_help)
+                getString(R.string.settings_help),
+                getString(R.string.settings_check_update)
         };
 
         @Override
@@ -1811,7 +1826,130 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
             case 12: // 帮助
                 showHelp();
                 return; // 帮助面板不关闭
+            case 13: // 检查更新
+                checkForUpdate();
+                return; // 检查更新不关闭面板
         }
         closeSettingsPanel();
+    }
+
+    /* ==================== 检查更新 ==================== */
+
+    /** 获取当前 App 版本名 */
+    private String getVersionName() {
+        try {
+            PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return pi.versionName != null ? pi.versionName : "1.0.0";
+        } catch (Throwable t) {
+            return "1.0.0";
+        }
+    }
+
+    /** 检查 GitHub Releases 是否有新版本 */
+    private void checkForUpdate() {
+        showToast(getString(R.string.update_checking));
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                java.net.HttpURLConnection conn = null;
+                try {
+                    conn = (java.net.HttpURLConnection)
+                            new java.net.URL("https://api.github.com/repos/mf9593/subo-tv/releases/latest")
+                            .openConnection();
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(15000);
+                    conn.setRequestProperty("User-Agent", "SuboTV/" + getVersionName());
+                    conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
+                    int code = conn.getResponseCode();
+                    if (code == 200) {
+                        java.io.BufferedReader r = new java.io.BufferedReader(
+                                new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                        StringBuilder sb = new StringBuilder();
+                        String l;
+                        while ((l = r.readLine()) != null) sb.append(l);
+                        r.close();
+                        String latest = parseTagName(sb.toString());
+                        if (latest != null) {
+                            latest = latest.startsWith("v") ? latest.substring(1) : latest;
+                            final String latestVer = latest;
+                            final String currentVer = getVersionName();
+                            // 简单版本比较：字符串不同时认为有更新
+                            if (!latestVer.equals(currentVer)) {
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        showUpdateDialog(latestVer, currentVer);
+                                    }
+                                });
+                            } else {
+                                handler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        showToast(getString(R.string.update_latest));
+                                    }
+                                });
+                            }
+                        } else {
+                            handler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    showToast(getString(R.string.update_latest));
+                                }
+                            });
+                        }
+                    } else {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                showToast(getString(R.string.update_failed));
+                            }
+                        });
+                    }
+                } catch (Throwable t) {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            showToast(getString(R.string.update_failed));
+                        }
+                    });
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    /** 从 GitHub Release JSON 中提取 tag_name */
+    private String parseTagName(String json) {
+        if (json == null) return null;
+        int idx = json.indexOf("\"tag_name\"");
+        if (idx < 0) return null;
+        int colon = json.indexOf(":", idx);
+        if (colon < 0) return null;
+        int q1 = json.indexOf("\"", colon + 1);
+        if (q1 < 0) return null;
+        int q2 = json.indexOf("\"", q1 + 1);
+        if (q2 < 0) return null;
+        return json.substring(q1 + 1, q2);
+    }
+
+    /** 显示更新弹窗 */
+    private void showUpdateDialog(String latestVer, String currentVer) {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.settings_check_update)
+                .setMessage(getString(R.string.update_available, latestVer, currentVer))
+                .setPositiveButton(R.string.update_confirm, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        try {
+                            Intent browserIntent = new Intent(Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://github.com/mf9593/subo-tv/releases"));
+                            startActivity(browserIntent);
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                })
+                .setNegativeButton(R.string.update_cancel, null)
+                .show();
     }
 }

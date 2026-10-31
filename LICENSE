@@ -1,0 +1,35 @@
+MIT License
+
+Copyright (c) 2026 速播 (Subos)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+免责声明（Disclaimer）
+
+本项目「速播」是一个空壳播放器应用，不内置任何频道数据、直播源或内容。
+
+用户须自行导入直播源并确保其合法性。本项目开发者不对用户导入的任何内容
+承担任何责任，也不对因使用本应用而产生的任何直接或间接损失负责。
+
+用户使用本应用时，应遵守所在国家/地区的法律法规。因用户使用本应用
+而产生的任何法律问题，由用户自行承担。
+
+本软件按「现状」提供，不附带任何形式的保证。
