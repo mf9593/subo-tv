@@ -1,6 +1,8 @@
 package com.tvlive.app.player;
 
 import android.content.Context;
+import android.media.AudioManager;
+import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -87,6 +89,7 @@ public class LivePlayer {
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
         public void onPlaybackStateChanged(int playbackState) {
+            updatePlaybackState();
             if (playbackState == Player.STATE_READY) {
                 Log.i(TAG, "播放就绪: " + currentName + " [源 " + (sourceIndex + 1) + "/" + sources.size() + "]");
                 cancelReadyTimeout();
@@ -123,6 +126,7 @@ public class LivePlayer {
         @Override
         public void onPlayerError(PlaybackException error) {
             cancelReadyTimeout();
+            updatePlaybackState();
             String message = describe(error);
             Log.w(TAG, "播放出错: " + message
                     + " | code=" + error.getErrorCodeName()
@@ -487,6 +491,17 @@ public class LivePlayer {
         if (released || currentUrl() == null) return;
         String url = currentUrl();
         Log.d(TAG, "start(): url=" + url + " retry=" + retryCount + " hlsFallback=" + triedHlsFallback);
+
+        // Android 12+: 确保音频模式正常，避免 AudioTrack 被系统释放
+        try {
+            AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+            if (am != null) {
+                am.setMode(AudioManager.MODE_NORMAL);
+                Log.d(TAG, "音频模式已设为 MODE_NORMAL");
+            }
+        } catch (Throwable ignored) {
+        }
+
         try {
             ensurePlayer();
             listener.onStateChanged(STATE_CONNECTING, currentName);
@@ -565,6 +580,35 @@ public class LivePlayer {
                         lowLatency ? 800 : 2000)
                 .build();
 
+        // Android 12+ 必须在 player 创建前创建并激活 MediaSession
+        // 否则 AudioTrack 会被系统释放导致无声
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            try {
+                mediaSession = new android.media.session.MediaSession(context, "TvLivePlayer");
+                mediaSession.setActive(true);
+                mediaSession.setCallback(new android.media.session.MediaSession.Callback() {
+                    @Override
+                    public void onPlay() {
+                        if (player != null && !player.isPlaying())
+                            player.play();
+                    }
+                    @Override
+                    public void onPause() {
+                        if (player != null && player.isPlaying())
+                            player.pause();
+                    }
+                    @Override
+                    public void onStop() {
+                        if (player != null && player.getPlaybackState() != Player.STATE_IDLE)
+                            player.stop();
+                    }
+                });
+                Log.d(TAG, "MediaSession 已创建并激活");
+            } catch (Throwable t) {
+                Log.w(TAG, "MediaSession 创建失败: " + t);
+            }
+        }
+
         player = new ExoPlayer.Builder(context)
                 .setRenderersFactory(renderers)
                 .setLoadControl(loadControl)
@@ -578,14 +622,27 @@ public class LivePlayer {
             }
         }
 
-        // Android 12+ 需要 MediaSession 才能正常路由音频输出
-        // 否则 AudioTrack 可能 deviceIds 为空导致无声
-        if (android.os.Build.VERSION.SDK_INT >= 21) {
-            try {
-                mediaSession = new android.media.session.MediaSession(context, "TvLivePlayer");
-            } catch (Throwable t) {
-                Log.w(TAG, "MediaSession 创建失败: " + t);
+        // 更新初始播放状态
+        updatePlaybackState();
+    }
+
+    /** 更新 MediaSession 的 PlaybackState，Android 12+ 依赖此状态路由音频 */
+    private void updatePlaybackState() {
+        if (mediaSession == null || player == null) return;
+        try {
+            int state;
+            int ps = player.getPlaybackState();
+            if (ps == Player.STATE_READY || ps == Player.STATE_BUFFERING) {
+                state = PlaybackState.STATE_PLAYING;
+            } else if (ps == Player.STATE_IDLE || ps == Player.STATE_ENDED) {
+                state = PlaybackState.STATE_STOPPED;
+            } else {
+                state = PlaybackState.STATE_BUFFERING;
             }
+            PlaybackState.Builder builder = new PlaybackState.Builder()
+                    .setState(state, player.getCurrentPosition(), 1.0f);
+            mediaSession.setPlaybackState(builder.build());
+        } catch (Throwable ignored) {
         }
     }
 
