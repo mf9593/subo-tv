@@ -1175,6 +1175,8 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         if (!isDebuggable()) return;
         TextView dbg = findViewById(R.id.debugInfo);
         if (dbg == null) return;
+        // 播放时左上角不自动显示提示，仅当用户通过 show_debug 手动开启后才更新
+        if (dbg.getVisibility() != View.VISIBLE) return;
         String stateStr;
         switch (state) {
             case LivePlayer.STATE_PLAYING: stateStr = "播放中"; break;
