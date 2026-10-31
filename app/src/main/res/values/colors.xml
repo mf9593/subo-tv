@@ -18,27 +18,27 @@
     <color name="text_tertiary">#66FFFFFF</color>
 
     <!-- 主题色 -->
-    <color name="accent">#FF00DAC5</color>
-    <color name="accent_dim">#4D00DAC5</color>
-    <color name="accent_dark">#FF00A89A</color>
+    <color name="accent">#FF4A9EFF</color>
+    <color name="accent_dim">#4D4A9EFF</color>
+    <color name="accent_dark">#FF2D7DD8</color>
 
     <!-- 频道号色块 -->
     <color name="channel_num_bg">#FF1B2431</color>
-    <color name="channel_num_fg">#FF00DAC5</color>
+    <color name="channel_num_fg">#FF4A9EFF</color>
     <color name="channel_num_fg_sel">#FF05110F</color>
 
     <!-- 分组头 -->
     <color name="group_header_bg">#FF1A222E</color>
-    <color name="group_header_fg">#FF00DAC5</color>
+    <color name="group_header_fg">#FF4A9EFF</color>
 
     <!-- 列表项状态 -->
-    <color name="item_focus">#3300DAC5</color>
-    <color name="item_selected">#2600DAC5</color>
+    <color name="item_focus">#334A9EFF</color>
+    <color name="item_selected">#264A9EFF</color>
     <color name="item_divider">#14FFFFFF</color>
 
     <!-- 音量条 -->
     <color name="volume_track">#4DFFFFFF</color>
-    <color name="volume_progress">#FF00DAC5</color>
+    <color name="volume_progress">#FF4A9EFF</color>
 
     <!-- 状态色 -->
     <color name="status_ok">#FF4CD964</color>

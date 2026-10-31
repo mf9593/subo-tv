@@ -20,7 +20,7 @@ public final class ThemeManager {
 
     /** 预设主题：每项为 {accent, accentDim, accentDark} */
     public static final int[][] THEMES = {
-            {0xFF00DAC5, 0x4D00DAC5, 0xFF00A89A}, // 青绿（默认）
+            {0xFF4A9EFF, 0x4D4A9EFF, 0xFF2D7DD8}, // 海蓝（默认）
             {0xFFFF6B6B, 0x4DFF6B6B, 0xFFE84D4D}, // 珊瑚红
             {0xFFFFD93D, 0x4DFFD93D, 0xFFE8B83D}, // 琥珀金
             {0xFF6BCBFF, 0x4D6BCBFF, 0xFF4DA8E8}, // 天青蓝
@@ -30,12 +30,12 @@ public final class ThemeManager {
     };
 
     public static final String[] THEME_NAMES = {
-            "青绿", "珊瑚红", "琥珀金", "天青蓝", "幻紫", "翠绿", "暖橙",
+            "海蓝", "珊瑚红", "琥珀金", "天青蓝", "幻紫", "翠绿", "暖橙",
     };
 
-    private static int accent = 0xFF00DAC5;
-    private static int accentDim = 0x4D00DAC5;
-    private static int accentDark = 0xFF00A89A;
+    private static int accent = 0xFF4A9EFF;
+    private static int accentDim = 0x4D4A9EFF;
+    private static int accentDark = 0xFF2D7DD8;
 
     private ThemeManager() {
     }
