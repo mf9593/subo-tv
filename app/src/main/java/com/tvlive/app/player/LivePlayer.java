@@ -9,12 +9,23 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.SurfaceView;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.Format;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.Renderer;
+import com.google.android.exoplayer2.analytics.AnalyticsListener;
+import com.google.android.exoplayer2.audio.AudioRendererEventListener;
+import com.google.android.exoplayer2.audio.AudioSink;
+import com.google.android.exoplayer2.decoder.DecoderCounters;
 import com.google.android.exoplayer2.mediacodec.MediaCodecInfo;
 import com.google.android.exoplayer2.mediacodec.MediaCodecSelector;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
@@ -92,6 +103,7 @@ public class LivePlayer {
             updatePlaybackState();
             if (playbackState == Player.STATE_READY) {
                 Log.i(TAG, "播放就绪: " + currentName + " [源 " + (sourceIndex + 1) + "/" + sources.size() + "]");
+                writeLog("播放就绪: " + currentName + " [源 " + (sourceIndex + 1) + "/" + sources.size() + "]");
                 cancelReadyTimeout();
                 // 换源记忆：保存当前源下标
                 if (sourceMemoryEnabled && currentName != null) {
@@ -129,6 +141,9 @@ public class LivePlayer {
             updatePlaybackState();
             String message = describe(error);
             Log.w(TAG, "播放出错: " + message
+                    + " | code=" + error.getErrorCodeName()
+                    + " | url=" + currentUrl());
+            writeLog("播放出错: " + message
                     + " | code=" + error.getErrorCodeName()
                     + " | url=" + currentUrl());
             handleFailure(message);
@@ -491,6 +506,8 @@ public class LivePlayer {
         if (released || currentUrl() == null) return;
         String url = currentUrl();
         Log.d(TAG, "start(): url=" + url + " retry=" + retryCount + " hlsFallback=" + triedHlsFallback);
+        writeLog("start(): url=" + url + " retry=" + retryCount + " hlsFallback=" + triedHlsFallback
+                + " SDK=" + android.os.Build.VERSION.SDK_INT + " 型号=" + android.os.Build.MODEL);
 
         // Android 12+: 确保音频模式正常，避免 AudioTrack 被系统释放
         try {
@@ -542,6 +559,92 @@ public class LivePlayer {
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(context);
         // 硬解失败时尝试其他解码器，老盒子上很关键
         renderers.setEnableDecoderFallback(true);
+        // 音频调试：捕获音频渲染器生命周期，定位无声根因
+        try {
+            renderers = new DefaultRenderersFactory(context) {
+                @Override
+                protected void buildAudioRenderers(Context ctx, int extensionRendererMode,
+                        MediaCodecSelector mediaCodecSelector, boolean enableDecoderFallback,
+                        AudioSink audioSink, Handler eventHandler,
+                        AudioRendererEventListener eventListener, ArrayList<Renderer> out) {
+                    super.buildAudioRenderers(ctx, extensionRendererMode, mediaCodecSelector,
+                            enableDecoderFallback, audioSink, eventHandler,
+                            new AudioRendererEventListener() {
+                                @Override
+                                public void onAudioEnabled(DecoderCounters counters) {
+                                    Log.d(TAG, "AudioRenderer: 启用");
+                                    writeLog("AudioRenderer: 启用");
+                                    eventListener.onAudioEnabled(counters);
+                                }
+                                @Override
+                                public void onAudioDecoderInitialized(String decoderName,
+                                        long initializedTimestampMs, long initializationDurationMs) {
+                                    Log.d(TAG, "AudioRenderer: 解码器 " + decoderName
+                                            + " 初始化 " + initializationDurationMs + "ms");
+                                    writeLog("AudioRenderer: 解码器 " + decoderName
+                                            + " 初始化 " + initializationDurationMs + "ms");
+                                    eventListener.onAudioDecoderInitialized(decoderName,
+                                            initializedTimestampMs, initializationDurationMs);
+                                }
+                                @Override
+                                public void onAudioInputFormatChanged(Format format) {
+                                    Log.d(TAG, "AudioRenderer: 格式 mime=" + format.sampleMimeType
+                                            + " sr=" + format.sampleRate
+                                            + " ch=" + format.channelCount
+                                            + " codecs=" + format.codecs);
+                                    writeLog("AudioRenderer: 格式 mime=" + format.sampleMimeType
+                                            + " sr=" + format.sampleRate
+                                            + " ch=" + format.channelCount
+                                            + " codecs=" + format.codecs);
+                                    eventListener.onAudioInputFormatChanged(format);
+                                }
+                                @Override
+                                public void onAudioUnderrun(int bufferSize, long bufferSizeMs,
+                                        long elapsedSinceLastFeedMs) {
+                                    Log.w(TAG, "AudioRenderer: 欠载 buffer=" + bufferSize
+                                            + " sizeMs=" + bufferSizeMs
+                                            + " lastFeed=" + elapsedSinceLastFeedMs + "ms");
+                                    writeLog("AudioRenderer: 欠载 buffer=" + bufferSize
+                                            + " sizeMs=" + bufferSizeMs
+                                            + " lastFeed=" + elapsedSinceLastFeedMs + "ms");
+                                    eventListener.onAudioUnderrun(bufferSize, bufferSizeMs,
+                                            elapsedSinceLastFeedMs);
+                                }
+                                @Override
+                                public void onAudioDisabled(DecoderCounters counters) {
+                                    Log.w(TAG, "AudioRenderer: 停用!!!");
+                                    writeLog("AudioRenderer: 停用!!!");
+                                    eventListener.onAudioDisabled(counters);
+                                }
+                                @Override
+                                public void onAudioSinkError(Exception error) {
+                                    Log.e(TAG, "AudioRenderer: 输出错误 " + error, error);
+                                    writeLog("AudioRenderer: 输出错误 " + error);
+                                    eventListener.onAudioSinkError(error);
+                                }
+                                @Override
+                                public void onAudioCodecError(Exception error) {
+                                    Log.e(TAG, "AudioRenderer: 解码错误 " + error, error);
+                                    writeLog("AudioRenderer: 解码错误 " + error);
+                                    eventListener.onAudioCodecError(error);
+                                }
+                            }, out);
+                    // 添加纯 Java MP2 解码器作为兜底（Android 8+ 无系统 MP2 解码器）
+                    try {
+                        AudioSink mp2Sink = buildAudioSink(ctx, false, false, false);
+                        out.add(new MpegAudioTrackRenderer(eventHandler, eventListener, mp2Sink));
+                        Log.d(TAG, "MP2 解码渲染器已添加");
+                        writeLog("MP2 解码渲染器已添加");
+                    } catch (Throwable t) {
+                        Log.w(TAG, "MP2 渲染器添加失败: " + t);
+                        writeLog("MP2 渲染器添加失败: " + t);
+                    }
+                }
+            };
+            renderers.setEnableDecoderFallback(true);
+        } catch (Throwable t) {
+            Log.w(TAG, "音频调试包装失败: " + t);
+        }
 
         // 软解：优先选系统软件解码器（API 21+ 支持 isSoftwareOnly）
         if (decodeMode == DECODE_SW) {
@@ -614,6 +717,33 @@ public class LivePlayer {
                 .setLoadControl(loadControl)
                 .build();
         player.addListener(playerListener);
+        // 音频调试：捕获音频渲染器生命周期和欠载事件
+        try {
+            player.addAnalyticsListener(new AnalyticsListener() {
+                @Override
+                public void onAudioDecoderInitialized(EventTime eventTime, String decoderName,
+                        long initializedTimestampMs, long initializationDurationMs) {
+                    Log.d(TAG, "音频解码器初始化: " + decoderName + " 耗时=" + initializationDurationMs + "ms");
+                }
+                @Override
+                public void onAudioUnderrun(EventTime eventTime, int bufferSize, long bufferSizeMs,
+                        long elapsedSinceLastFeedMs) {
+                    Log.w(TAG, "音频欠载: bufferSize=" + bufferSize
+                            + " bufferSizeMs=" + bufferSizeMs
+                            + " sinceLastFeed=" + elapsedSinceLastFeedMs + "ms");
+                }
+                @Override
+                public void onAudioSinkError(EventTime eventTime, Exception audioSinkError) {
+                    Log.e(TAG, "音频输出错误: " + audioSinkError, audioSinkError);
+                }
+                @Override
+                public void onAudioCodecError(EventTime eventTime, Exception audioCodecError) {
+                    Log.e(TAG, "音频解码错误: " + audioCodecError, audioCodecError);
+                }
+            });
+        } catch (Throwable t) {
+            Log.w(TAG, "AnalyticsListener 添加失败: " + t);
+        }
         applyScaleMode();
         if (surfaceView != null) {
             try {
@@ -642,6 +772,21 @@ public class LivePlayer {
             PlaybackState.Builder builder = new PlaybackState.Builder()
                     .setState(state, player.getCurrentPosition(), 1.0f);
             mediaSession.setPlaybackState(builder.build());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 写入调试日志到 App 外部目录：/storage/emulated/0/Android/data/com.tvlive.app/files/tvlive_debug.log */
+    private void writeLog(String msg) {
+        try {
+            File dir = context.getExternalFilesDir(null);
+            if (dir == null) return;
+            File f = new File(dir, "tvlive_debug.log");
+            FileOutputStream fos = new FileOutputStream(f, true);
+            String line = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(new Date())
+                    + " [" + android.os.Process.myPid() + "] " + msg + "\n";
+            fos.write(line.getBytes("UTF-8"));
+            fos.close();
         } catch (Throwable ignored) {
         }
     }
