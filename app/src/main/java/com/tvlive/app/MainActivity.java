@@ -2136,6 +2136,10 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                     conn.setReadTimeout(15000);
                     conn.setRequestProperty("User-Agent", "SuboTV/" + getVersionName());
                     conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
+                    // Android 4.4 默认 SSL 不支持 TLS 1.2（GitHub API 要求），需手动启用
+                    if (android.os.Build.VERSION.SDK_INT < 21 && conn instanceof javax.net.ssl.HttpsURLConnection) {
+                        enableTls12((javax.net.ssl.HttpsURLConnection) conn);
+                    }
                     int code = conn.getResponseCode();
                     android.util.Log.i("UpdateCheck", "GitHub API 响应码: " + code);
                     if (code == 200) {
@@ -2199,6 +2203,72 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         }).start();
     }
 
+    /** Android 4.4 启用 TLS 1.1/1.2（GitHub API 等现代 HTTPS 服务要求）。 */
+    private void enableTls12(javax.net.ssl.HttpsURLConnection conn) {
+        try {
+            javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLSv1.2");
+            sc.init(null, null, null);
+            conn.setSSLSocketFactory(new TLSSocketFactory(sc.getSocketFactory()));
+        } catch (Throwable t) {
+            android.util.Log.w("UpdateCheck", "启用 TLS1.2 失败: " + t);
+        }
+    }
+
+    /** 自定义 SSLSocketFactory：强制启用 TLS 1.1/1.2（Android 4.4 默认只支持 SSLv3/TLS1.0）。 */
+    private static class TLSSocketFactory extends javax.net.ssl.SSLSocketFactory {
+        private final javax.net.ssl.SSLSocketFactory delegate;
+
+        TLSSocketFactory(javax.net.ssl.SSLSocketFactory delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public String[] getDefaultCipherSuites() {
+            return delegate.getDefaultCipherSuites();
+        }
+
+        @Override
+        public String[] getSupportedCipherSuites() {
+            return delegate.getSupportedCipherSuites();
+        }
+
+        @Override
+        public java.net.Socket createSocket(java.net.Socket s, String host, int port, boolean autoClose)
+                throws java.io.IOException {
+            return patch(delegate.createSocket(s, host, port, autoClose));
+        }
+
+        @Override
+        public java.net.Socket createSocket(String host, int port) throws java.io.IOException {
+            return patch(delegate.createSocket(host, port));
+        }
+
+        @Override
+        public java.net.Socket createSocket(String host, int port, java.net.InetAddress localHost, int localPort)
+                throws java.io.IOException {
+            return patch(delegate.createSocket(host, port, localHost, localPort));
+        }
+
+        @Override
+        public java.net.Socket createSocket(java.net.InetAddress host, int port) throws java.io.IOException {
+            return patch(delegate.createSocket(host, port));
+        }
+
+        @Override
+        public java.net.Socket createSocket(java.net.InetAddress address, int port,
+                java.net.InetAddress localAddress, int localPort) throws java.io.IOException {
+            return patch(delegate.createSocket(address, port, localAddress, localPort));
+        }
+
+        private java.net.Socket patch(java.net.Socket socket) {
+            if (socket instanceof javax.net.ssl.SSLSocket) {
+                javax.net.ssl.SSLSocket ssl = (javax.net.ssl.SSLSocket) socket;
+                ssl.setEnabledProtocols(new String[]{"TLSv1.2", "TLSv1.1", "TLSv1"});
+            }
+            return socket;
+        }
+    }
+
     /** 从 GitHub Release JSON 中提取 tag_name */
     private String parseTagName(String json) {
         if (json == null) return null;
@@ -2213,7 +2283,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         return json.substring(q1 + 1, q2);
     }
 
-    /** 显示更新弹窗 */
+    /** 显示更新弹窗（内置更新：下载 APK + 提示安装） */
     private void showUpdateDialog(String latestVer, String currentVer) {
         new android.app.AlertDialog.Builder(this)
                 .setTitle(R.string.settings_check_update)
@@ -2221,15 +2291,135 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 .setPositiveButton(R.string.update_confirm, new android.content.DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(android.content.DialogInterface dialog, int which) {
-                        try {
-                            Intent browserIntent = new Intent(Intent.ACTION_VIEW,
-                                    android.net.Uri.parse("https://github.com/mf9593/subo-tv/releases"));
-                            startActivity(browserIntent);
-                        } catch (Throwable ignored) {
+                        // Android 4.4 的 SSL 不兼容 GitHub TLS，无法直接下载 → 浏览器打开 Release 页
+                        if (android.os.Build.VERSION.SDK_INT < 21) {
+                            openBrowserReleases();
+                            return;
                         }
+                        // Android 5+：内置下载 APK + 安装
+                        downloadAndInstallUpdate(latestVer);
                     }
                 })
                 .setNegativeButton(R.string.update_cancel, null)
                 .show();
+    }
+
+    /** 浏览器打开 GitHub Releases（Android 4.4 fallback）。 */
+    private void openBrowserReleases() {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://github.com/mf9593/subo-tv/releases")));
+        } catch (Throwable t) {
+            showToast("无法打开浏览器");
+        }
+    }
+
+    /** 下载最新版本 APK 并调起安装。 */
+    private void downloadAndInstallUpdate(String latestVer) {
+        showToast("开始下载更新…");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                java.net.HttpURLConnection conn = null;
+                try {
+                    // 获取 Release 的第一个 APK 资产下载 URL
+                    String apiUrl = "https://api.github.com/repos/mf9593/subo-tv/releases/latest";
+                    conn = (java.net.HttpURLConnection) new java.net.URL(apiUrl).openConnection();
+                    conn.setConnectTimeout(10000);
+                    conn.setReadTimeout(15000);
+                    conn.setRequestProperty("User-Agent", "SuboTV/" + getVersionName());
+                    conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
+                    if (conn.getResponseCode() != 200) {
+                        handler.post(() -> showToast("获取更新信息失败"));
+                        return;
+                    }
+                    java.io.BufferedReader r = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String l;
+                    while ((l = r.readLine()) != null) sb.append(l);
+                    r.close();
+                    String apkUrl = parseFirstAssetUrl(sb.toString());
+                    if (apkUrl == null) {
+                        // Release 没有 APK 资产 → 浏览器打开
+                        handler.post(() -> {
+                            showToast("Release 未附 APK，打开浏览器");
+                            openBrowserReleases();
+                        });
+                        return;
+                    }
+                    // 下载 APK
+                    conn.disconnect();
+                    conn = (java.net.HttpURLConnection) new java.net.URL(apkUrl).openConnection();
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(30000);
+                    conn.setRequestProperty("User-Agent", "SuboTV/" + getVersionName());
+                    final int dlCode = conn.getResponseCode();
+                    if (dlCode != 200) {
+                        handler.post(() -> showToast("下载失败: HTTP " + dlCode));
+                        return;
+                    }
+                    java.io.File dir = new java.io.File(getExternalFilesDir(null), "updates");
+                    if (!dir.exists()) dir.mkdirs();
+                    java.io.File apkFile = new java.io.File(dir, "subo-tv-" + latestVer + ".apk");
+                    java.io.InputStream is = conn.getInputStream();
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(apkFile);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = is.read(buf)) > 0) fos.write(buf, 0, n);
+                    fos.close();
+                    is.close();
+                    handler.post(() -> {
+                        showToast("下载完成，调起安装");
+                        installApk(apkFile);
+                    });
+                } catch (Throwable t) {
+                    android.util.Log.w("UpdateCheck", "下载更新失败: " + t);
+                    handler.post(() -> showToast("下载失败: " + t.getMessage()));
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    /** 从 GitHub Release JSON 提取第一个 .apk 资产的 browser_download_url。 */
+    private String parseFirstAssetUrl(String json) {
+        if (json == null) return null;
+        int idx = 0;
+        while (true) {
+            idx = json.indexOf("\"browser_download_url\"", idx);
+            if (idx < 0) return null;
+            int colon = json.indexOf(":", idx);
+            if (colon < 0) return null;
+            int q1 = json.indexOf("\"", colon + 1);
+            if (q1 < 0) return null;
+            int q2 = json.indexOf("\"", q1 + 1);
+            if (q2 < 0) return null;
+            String url = json.substring(q1 + 1, q2);
+            if (url.endsWith(".apk")) return url;
+            idx = q2 + 1;
+        }
+    }
+
+    /** 调起系统安装器安装 APK。 */
+    private void installApk(java.io.File apkFile) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            android.net.Uri uri;
+            if (android.os.Build.VERSION.SDK_INT >= 24) {
+                uri = androidx.core.content.FileProvider.getUriForFile(this,
+                        getPackageName() + ".fileprovider", apkFile);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } else {
+                uri = android.net.Uri.fromFile(apkFile);
+            }
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Throwable t) {
+            android.util.Log.w("UpdateCheck", "安装失败: " + t);
+            showToast("安装失败: " + t.getMessage());
+        }
     }
 }

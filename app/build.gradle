@@ -59,6 +59,9 @@ dependencies {
     implementation 'com.google.android.exoplayer:exoplayer-core:2.19.1'
     implementation 'com.google.android.exoplayer:exoplayer-hls:2.19.1'
     implementation 'com.google.android.exoplayer:exoplayer-rtsp:2.19.1'
+
+    // FileProvider（应用内更新安装 APK）+ 兼容库
+    implementation 'androidx.core:core:1.8.0'
     // 二维码生成（纯 Java，兼容 API 19）
     implementation 'com.google.zxing:core:3.5.3'
 }
