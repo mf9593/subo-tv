@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 多源标记/次要文字：聚焦=深色，否则灰 -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_focused="true" android:color="#FF05110F" />
-    <item android:color="@color/text_tertiary" />
-</selector>

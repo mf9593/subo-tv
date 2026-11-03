@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 频道名/设置文字：聚焦=深色，当前选中=主题色高亮，否则白 -->
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_focused="true" android:color="#FF05110F" />
-    <item android:state_selected="true" android:color="@color/accent" />
-    <item android:color="@color/text_primary" />
-</selector>
