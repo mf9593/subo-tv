@@ -25,6 +25,8 @@ import com.google.android.exoplayer2.Renderer;
 import com.google.android.exoplayer2.analytics.AnalyticsListener;
 import com.google.android.exoplayer2.audio.AudioRendererEventListener;
 import com.google.android.exoplayer2.audio.AudioSink;
+import com.google.android.exoplayer2.audio.DefaultAudioSink;
+import com.google.android.exoplayer2.audio.DefaultAudioSink.AudioTrackBufferSizeProvider;
 import com.google.android.exoplayer2.decoder.DecoderCounters;
 import com.google.android.exoplayer2.mediacodec.MediaCodecInfo;
 import com.google.android.exoplayer2.mediacodec.MediaCodecSelector;
@@ -108,6 +110,10 @@ public class LivePlayer {
                 // 换源记忆：保存当前源下标
                 if (sourceMemoryEnabled && currentName != null) {
                     sourceMemory.put(currentName, sourceIndex);
+                    // 持久化到 SharedPreferences，App 重启后仍记住上次源
+                    try {
+                        sourceMemoryPrefs.edit().putInt(currentName, sourceIndex).apply();
+                    } catch (Throwable t) { /* 忽略 */ }
                 }
                 listener.onStateChanged(STATE_PLAYING, currentName);
                 // 开始无视频帧检测（黑屏时自动换源）
@@ -232,8 +238,12 @@ public class LivePlayer {
 
     private void scheduleNoVideoTimeout() {
         handler.removeCallbacks(noVideoTimeoutRunnable);
+        String url = currentUrl();
         // udpxy TS-over-HTTP 流的 onVideoSizeChanged 不触发，跳过无视频帧检测
-        if (isUdpxyStream(currentUrl())) return;
+        if (isUdpxyStream(url)) return;
+        // UDP 组播/单播实时流从 GOP 中间加入，需等待关键帧（I 帧）才能解码出画面，
+        // 不能用短超时强制重连（会陷入重连循环），跳过无视频帧检测
+        if (url != null && url.toLowerCase(java.util.Locale.ROOT).startsWith("udp://")) return;
         handler.postDelayed(noVideoTimeoutRunnable, NO_VIDEO_TIMEOUT_MS);
     }
 
@@ -265,6 +275,8 @@ public class LivePlayer {
     private boolean released = false;
     /** 换源记忆：频道名 -> 上次使用的源下标 */
     private final java.util.Map<String, Integer> sourceMemory = new java.util.HashMap<String, Integer>();
+    private final android.content.SharedPreferences sourceMemoryPrefs;
+    private static final String SOURCE_MEMORY_PREFS = "source_memory_prefs";
     /** 是否启用换源记忆 */
     private boolean sourceMemoryEnabled = true;
     /** 连续 STATE_ENDED 次数（超过阈值后换源） */
@@ -275,6 +287,7 @@ public class LivePlayer {
     public LivePlayer(Context context, Listener listener) {
         this.context = context.getApplicationContext();
         this.listener = listener;
+        this.sourceMemoryPrefs = this.context.getSharedPreferences(SOURCE_MEMORY_PREFS, Context.MODE_PRIVATE);
     }
 
     /* ==================== 对外接口 ==================== */
@@ -398,9 +411,18 @@ public class LivePlayer {
         endedCount = 0;
         released = false;
         cancelReadyTimeout();
-        // 换源记忆：恢复上次使用的源下标
-        if (sourceMemoryEnabled && sourceMemory.containsKey(currentName)) {
-            int saved = sourceMemory.get(currentName);
+        // 换源记忆：恢复上次使用的源下标（内存 + 持久化）
+        if (sourceMemoryEnabled) {
+            int saved = -1;
+            // 优先内存缓存
+            if (sourceMemory.containsKey(currentName)) {
+                saved = sourceMemory.get(currentName);
+            }
+            // 内存没有，读持久化（App 重启后恢复）
+            if (saved < 0) {
+                saved = sourceMemoryPrefs.getInt(currentName, -1);
+                if (saved >= 0) sourceMemory.put(currentName, saved);
+            }
             if (saved >= 0 && saved < sources.size()) {
                 sourceIndex = saved;
                 Log.i(TAG, "换源记忆恢复: " + currentName + " -> 源 " + (sourceIndex + 1) + "/" + sources.size());
@@ -629,12 +651,36 @@ public class LivePlayer {
                                     eventListener.onAudioCodecError(error);
                                 }
                             }, out);
-                    // 添加纯 Java MP2 解码器作为兜底（Android 8+ 无系统 MP2 解码器）
+                    // 添加 JavaMP3 软解 MP2 渲染器（已验证无莎莎，插到最前优先）
                     try {
-                        AudioSink mp2Sink = buildAudioSink(ctx, false, false, false);
-                        out.add(new MpegAudioTrackRenderer(eventHandler, eventListener, mp2Sink));
-                        Log.d(TAG, "MP2 解码渲染器已添加");
-                        writeLog("MP2 解码渲染器已添加");
+                        // Android 4.4 老设备 AudioTrack 缓冲小 + 直播流抖动 → 欠载卡顿。
+                        // 用 DefaultAudioSink.Builder 增大 AudioTrack 缓冲（默认 4 倍，最小 64KB，最大 512KB），
+                        // 吸收解码延迟和网络抖动，避免 releaseBuffer() underrun 重启。
+                        AudioSink mp2Sink;
+                        try {
+                            mp2Sink = new DefaultAudioSink.Builder(ctx)
+                                    .setAudioTrackBufferSizeProvider(new AudioTrackBufferSizeProvider() {
+                                        @Override
+                                        public int getBufferSizeInBytes(int minBufferSize,
+                                                int encodedFrameSize, int sampleRate,
+                                                int channelCount, int outputPcmFrameSize,
+                                                int maxInputSize, double playbackSpeed) {
+                                            int size = minBufferSize * 4;
+                                            if (size < 65536) size = 65536;   // 最小 64KB
+                                            if (size > 524288) size = 524288; // 最大 512KB
+                                            return size;
+                                        }
+                                    })
+                                    .build();
+                        } catch (Throwable t) {
+                            // Builder 失败则回退默认
+                            mp2Sink = buildAudioSink(ctx, false, false, false);
+                        }
+                        Mp2AudioRenderer mp2Renderer =
+                                new Mp2AudioRenderer(eventHandler, eventListener, mp2Sink);
+                        out.add(0, mp2Renderer);
+                        Log.d(TAG, "MP2 软解渲染器已添加（优先，大缓冲）");
+                        writeLog("MP2 软解渲染器已添加（优先，大缓冲）");
                     } catch (Throwable t) {
                         Log.w(TAG, "MP2 渲染器添加失败: " + t);
                         writeLog("MP2 渲染器添加失败: " + t);
@@ -677,10 +723,10 @@ public class LivePlayer {
 
         DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                        lowLatency ? 6000 : 20000,
-                        lowLatency ? 15000 : 60000,
-                        lowLatency ? 400 : 1000,
-                        lowLatency ? 800 : 2000)
+                        lowLatency ? 6000 : 30000,
+                        lowLatency ? 15000 : 90000,
+                        lowLatency ? 400 : 8000,
+                        lowLatency ? 800 : 15000)
                 .build();
 
         // Android 12+ 必须在 player 创建前创建并激活 MediaSession
@@ -824,6 +870,16 @@ public class LivePlayer {
                     .setTimeoutMs(12000)
                     .setUserAgent("TvLive/1.0")
                     .createMediaSource(MediaItem.fromUri(uri));
+        }
+        // UDP 组播/单播（IPTV 直连 udp://239.x.x.x:port，不依赖 udpxy 服务器）
+        if ("udp".equals(scheme)) {
+            Log.i(TAG, "UDP 组播/单播: " + url);
+            MediaItem item = new MediaItem.Builder()
+                    .setUri(uri)
+                    .setMimeType("video/mp2t")
+                    .build();
+            return new ProgressiveMediaSource.Factory(new UdpDataSource.Factory(context))
+                    .createMediaSource(item);
         }
         // udpxy / TS-over-HTTP：http URL 路径含 /rtp/，服务器是 UDP→HTTP 代理，
         // 返回的是原始 MPEG-TS 数据（0x47 同步字节），不是 RTSP

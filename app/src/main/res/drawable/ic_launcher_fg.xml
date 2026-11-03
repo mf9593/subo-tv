@@ -5,6 +5,12 @@
     android:viewportWidth="200"
     android:viewportHeight="200">
 
+    <!-- 整体平移让内容在 safe zone 内垂直居中（原中心约 92.5,84 → 平移 0,+16 → 92.5,100）
+         水平方向主体（机身+天线）中心已在 100，无需右移；红点为装饰偏右不影响主体居中 -->
+    <group
+        android:translateX="0"
+        android:translateY="16">
+
     <!-- 天线 -->
     <path
         android:pathData="M100,55 L70,25"
@@ -35,4 +41,5 @@
         android:pathData="M152,50 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0z"
         android:fillColor="#FFFF5252" />
 
+    </group>
 </vector>

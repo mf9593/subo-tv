@@ -25,6 +25,13 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.Socket;
+import java.util.Enumeration;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -114,12 +121,17 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     private View settingsPanelContent;
     private ListView settingsList;
     private TextView settingsVersion;
+    // 设备信息栏（IP + adb 状态 + adb 地址端口）
+    private View deviceInfoBar;
+    private TextView deviceIpText;
+    private TextView adbStatusText;
 
     private LivePlayer livePlayer;
     private GestureDetector gestureDetector;
     private com.tvlive.app.server.LocalWebServer webServer;
     private ImportDialog importDialog;
     private int settingOptionLocked = -1;  // 当前锁定的多选项设置下标（-1=未锁定）
+    private int settingsSelectedPos = 0;   // 设置列表当前选中项（用于高亮）
 
     /* 设置项下标常量（原在 SettingsAdapter 内部，提到外层以便 cycleSettingOption 访问） */
     private static final int SWITCH_SOURCE = 0;
@@ -279,6 +291,14 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
             @Override
             public void onImportClosed() {
+                // 退出频道导入：关闭 Web 后台服务，防止后台被他人上传文件影响播放
+                if (webServer != null) {
+                    try {
+                        webServer.stop();
+                    } catch (Throwable t) {
+                        android.util.Log.w("MainActivity", "webServer stop: " + t);
+                    }
+                }
                 new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                     @Override
                     public void run() {
@@ -307,13 +327,23 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                         reloadChannels();
                     }
                 });
-        webServer.start();
+        // Web 后台改为按需启动：点击"频道导入"时启动，退出导入时关闭，
+        // 避免后台常驻被他人上传文件影响播放。
     }
 
-    /** 打开频道导入弹窗 */
+    /** 打开频道导入弹窗（按需启动 Web 后台服务） */
     private void openImportDialog() {
         if (importDialog == null) { android.util.Log.e("MainActivity", "openImportDialog: importDialog is null"); return; }
-        String url = webServer != null ? webServer.baseUrl() : "";
+        // 启动 Web 后台（已运行则幂等返回）
+        String url = "";
+        if (webServer != null) {
+            try {
+                webServer.start();
+            } catch (Throwable t) {
+                android.util.Log.w("MainActivity", "webServer start: " + t);
+            }
+            url = webServer.baseUrl();
+        }
         android.util.Log.d("MainActivity", "openImportDialog: calling show, url=" + url);
         importDialog.show(url);
     }
@@ -370,6 +400,9 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         settingsPanelContent = findViewById(R.id.settingsPanelContent);
         settingsList = (ListView) findViewById(R.id.settingsList);
         settingsVersion = (TextView) findViewById(R.id.settingsVersion);
+        deviceInfoBar = findViewById(R.id.deviceInfoBar);
+        deviceIpText = (TextView) findViewById(R.id.deviceIpText);
+        adbStatusText = (TextView) findViewById(R.id.adbStatusText);
         // 面板遮罩区域点击关闭面板
         channelPanel.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -505,6 +538,30 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 || keyCode == KeyEvent.KEYCODE_ENTER
                 || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER;
 
+        // 设置面板打开时，上下键直接移动选中项（不依赖 ListView 焦点，Android 4.4 兼容）
+        if (isSettingsPanelOpen() && !isHelpOpen()
+                && event.getAction() == KeyEvent.ACTION_DOWN
+                && (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+            int pos = settingsSelectedPos;
+            int count = settingsList != null && settingsList.getAdapter() != null
+                    ? settingsList.getAdapter().getCount() : 0;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (pos > 0) settingsSelectedPos = pos - 1;
+            } else {
+                if (pos < count - 1) settingsSelectedPos = pos + 1;
+            }
+            if (settingsList != null) {
+                settingsList.setSelection(settingsSelectedPos);
+                settingsList.smoothScrollToPosition(settingsSelectedPos);
+                settingsList.invalidateViews();  // 刷新高亮
+            }
+            // 取消多选项锁定
+            if (settingOptionLocked >= 0) {
+                settingOptionLocked = -1;
+            }
+            return true;
+        }
+
         // OK 键拦截：避免被聚焦的 ListView/View 消费导致 onKeyDown 不被调用
         if (isOk) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
@@ -513,8 +570,8 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                         restoreSettingsPanel();
                         return true;
                     }
-                    int pos = settingsList.getSelectedItemPosition();
-                    if (pos >= 0 && pos < settingsList.getAdapter().getCount()) {
+                    int pos = settingsList != null ? settingsSelectedPos : -1;
+                    if (pos >= 0 && settingsList != null && pos < settingsList.getAdapter().getCount()) {
                         onSettingClick(pos);
                     }
                     return true;
@@ -564,12 +621,11 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
     /* ==================== 频道列表面板（左侧两列） ==================== */
 
-    /** 设置频道/设置面板宽度为屏幕的 50% */
+    /** 设置频道/设置面板宽度为屏幕的 50%（固定横屏一半） */
     private void setPanelWidths() {
         int screenW = getResources().getDisplayMetrics().widthPixels;
-        // 面板宽度：大屏 55%，小屏 50%，给文字更多空间
-        int w = (int) (screenW * 0.55f);
-        if (screenW < 1920) w = screenW / 2;
+        // 固定横屏 50%
+        int w = screenW / 2;
         if (channelPanelContent != null) {
             channelPanelContent.getLayoutParams().width = w;
             channelPanelContent.requestLayout();
@@ -717,19 +773,142 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         settingsPanel.setVisibility(View.VISIBLE);
         // 重置为设置列表状态
         TextView title = (TextView) findViewById(R.id.settingsTitleText);
-        if (title != null) title.setText(R.string.settings_title);
+        if (title != null) {
+            // 版本号显示在顶部标题（更醒目）
+            title.setText(getString(R.string.settings_title) + "  v" + getVersionName());
+        }
         FrameLayout helpContainer = (FrameLayout) findViewById(R.id.helpContainer);
         if (helpContainer != null) helpContainer.setVisibility(View.GONE);
         if (settingsList != null) settingsList.setVisibility(View.VISIBLE);
-        // 显示版本号
+        // 版本号已移到顶部标题显示，底部版本号隐藏
         if (settingsVersion != null) {
-            String ver = getVersionName();
-            settingsVersion.setText(getString(R.string.settings_version, ver));
-            settingsVersion.setVisibility(View.VISIBLE);
+            settingsVersion.setVisibility(View.GONE);
         }
+        // 显示设备信息（IP + adb 状态 + adb 地址端口）
+        updateDeviceInfo();
         settingsList.setAdapter(new SettingsAdapter());
+        settingsSelectedPos = 0;
         settingsList.setSelection(0);
         settingsList.requestFocus();
+    }
+
+    /**
+     * 更新设置页底部的设备信息：本机 IP、adb 开启状态、adb 地址端口。
+     */
+    private void updateDeviceInfo() {
+        if (deviceInfoBar == null) return;
+        try {
+            String ip = getLocalIpv4();
+            String adbPort = getAdbTcpPort();
+            boolean adbOn = adbPort != null && !adbPort.isEmpty() && !"0".equals(adbPort);
+            // 若反射读端口失败，回退 Socket 探测 5555
+            if (adbPort == null) {
+                adbOn = isPortOpen(ip, 5555) || isPortOpen("127.0.0.1", 5555);
+                adbPort = adbOn ? "5555" : null;
+            }
+            if (deviceIpText != null) {
+                deviceIpText.setText("本机IP " + (ip == null || ip.isEmpty() ? "未知" : ip));
+            }
+            if (adbStatusText != null) {
+                // adb 只显示端口（简洁）
+                if (adbOn && adbPort != null && !adbPort.isEmpty()) {
+                    adbStatusText.setText("adb " + adbPort);
+                } else {
+                    adbStatusText.setText("adb 未开启");
+                }
+            }
+            deviceInfoBar.setVisibility(View.VISIBLE);
+        } catch (Throwable t) {
+            Log.w(TAG, "设备信息更新失败: " + t);
+        }
+    }
+
+    /** 获取本机 IPv4 地址（非回环）。 */
+    private String getLocalIpv4() {
+        try {
+            Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+            while (nets != null && nets.hasMoreElements()) {
+                NetworkInterface nif = nets.nextElement();
+                if (nif == null || !nif.isUp()) continue;
+                Enumeration<InetAddress> addrs = nif.getInetAddresses();
+                while (addrs != null && addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "获取 IP 失败: " + t);
+        }
+        return null;
+    }
+
+    /**
+     * 检测 adb over Wi-Fi 是否开启并返回 TCP 端口。
+     * 优先反射读 service.adb.tcp.port；失败则扫描 /proc/net/tcp（含 tcp6）找监听端口。
+     */
+    private String getAdbTcpPort() {
+        // 1. 反射读 service.adb.tcp.port
+        try {
+            Class<?> sp = Class.forName("android.os.SystemProperties");
+            Object port = sp.getMethod("get", String.class).invoke(null, "service.adb.tcp.port");
+            if (port != null) {
+                String s = String.valueOf(port).trim();
+                if (!s.isEmpty() && !"0".equals(s)) return s;
+            }
+        } catch (Throwable t) {
+            // 隐藏 API 限制，走 /proc/net/tcp
+        }
+        // 2. /proc/net/tcp 找 5555（常见 adb 端口）或其他常见端口监听
+        int p = findListeningAdbPort();
+        return p > 0 ? String.valueOf(p) : null;
+    }
+
+    /** 扫描 /proc/net/tcp、/proc/net/tcp6，返回处于 LISTEN 的 adb 端口（5555 优先）。 */
+    private int findListeningAdbPort() {
+        String[] files = {"/proc/net/tcp", "/proc/net/tcp6"};
+        try {
+            for (String f : files) {
+                java.io.BufferedReader br =
+                        new java.io.BufferedReader(new java.io.FileReader(f));
+                String line;
+                while ((line = br.readLine()) != null) {
+                    String[] parts = line.trim().split("\\s+");
+                    // local_address 形如 0100007F:15B3；状态 0A = LISTEN
+                    if (parts.length > 3 && "0A".equalsIgnoreCase(parts[3])) {
+                        String addr = parts[1].toUpperCase();
+                        int idx = addr.lastIndexOf(':');
+                        if (idx >= 0) {
+                            try {
+                                int port = Integer.parseInt(addr.substring(idx + 1), 16);
+                                if (port == 5555) { // adb 默认端口优先
+                                    br.close();
+                                    return port;
+                                }
+                            } catch (NumberFormatException e) { /* skip */ }
+                        }
+                    }
+                }
+                br.close();
+            }
+        } catch (Throwable t) {
+            // /proc 不可读（SELinux），返回 0
+        }
+        return 0;
+    }
+
+    /** 兼容保留：Socket 探测 TCP 端口是否可连接。 */
+    private boolean isPortOpen(String host, int port) {
+        if (host == null || host.isEmpty()) return false;
+        try {
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress(host, port), 400);
+            s.close();
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
     }
     /** 确保 ListView 用标准 D-pad 导航（焦点在列表上），选中变化时刷新高亮 */
     private void enableFocusNavigation(final ListView list) {
@@ -863,7 +1042,12 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                openChannelPanel();
+                // 空状态（无频道）时按 OK 直接打开设置，方便导入频道
+                if (channels.isEmpty()) {
+                    openSettingsPanel();
+                } else {
+                    openChannelPanel();
+                }
                 return true;
             case KeyEvent.KEYCODE_MENU:
                 openSettingsPanel();
@@ -976,7 +1160,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
                 // 光标在多选项设置上：左键切换上一个选项
-                int posLeft = settingsList.getSelectedItemPosition();
+                int posLeft = settingsSelectedPos;
                 if (posLeft >= 0 && isMultiOption(posLeft)) {
                     cycleSettingOption(posLeft, -1);
                     return true;
@@ -985,7 +1169,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                 return true;
             case KeyEvent.KEYCODE_DPAD_RIGHT:
                 // 光标在多选项设置上：右键切换下一个选项
-                int posRight = settingsList.getSelectedItemPosition();
+                int posRight = settingsSelectedPos;
                 if (posRight >= 0 && isMultiOption(posRight)) {
                     cycleSettingOption(posRight, 1);
                     return true;
@@ -999,12 +1183,23 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                     settingOptionLocked = -1;
                     settingsList.invalidateViews();
                 }
-                return false;  // 让 ListView 自行处理上下导航
+                // 手动移动选中项（Android 4.4 上 ListView 可能无焦点，return false 会导致上下键失效）
+                if (settingsList != null && event.getAction() == KeyEvent.ACTION_DOWN) {
+                    int p = settingsList.getSelectedItemPosition();
+                    if (p < 0) p = 0;
+                    int count = settingsList.getAdapter() != null ? settingsList.getAdapter().getCount() : 0;
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                        if (p > 0) settingsList.setSelection(p - 1);
+                    } else {
+                        if (p < count - 1) settingsList.setSelection(p + 1);
+                    }
+                }
+                return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                int pos = settingsList.getSelectedItemPosition();
-                if (pos >= 0 && pos < settingsList.getAdapter().getCount()) {
+                int pos = settingsSelectedPos;
+                if (pos >= 0 && settingsList != null && pos < settingsList.getAdapter().getCount()) {
                     onSettingClick(pos);
                 }
                 return true;
@@ -1792,8 +1987,9 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                     }
                 });
             }
-            boolean focused = settingsList.hasFocus() && position == settingsList.getSelectedItemPosition();
-            // 多选项设置被聚焦时：箭头用深色（配合主题色背景）；非聚焦时用灰色
+            // 选中高亮：用 settingsSelectedPos 判断（不依赖 ListView 焦点，Android 4.4 兼容）
+            boolean focused = position == settingsSelectedPos;
+            // 多选项设置被选中时：箭头用深色（配合主题色背景）；未选中时用灰色
             boolean arrowHighlighted = focused && isMultiOption(position);
             int arrowColor = arrowHighlighted ? getResources().getColor(R.color.text_on_accent)
                     : getResources().getColor(R.color.text_tertiary);

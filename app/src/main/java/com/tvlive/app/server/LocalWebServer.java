@@ -142,7 +142,7 @@ public class LocalWebServer {
                         final int code = checkUrl(url);
                         String body;
                         if (code >= 200 && code < 300) {
-                            body = page("<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align:middle;margin-right:4px\"><polyline points=\"20 6 9 17 4 12\"/></svg> 地址可用（HTTP " + code + "）<p>" + escape(url) + "</p>");
+                            body = page("<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align:middle;margin-right:4px\"><polyline points=\"20 6 9 17 4 12\"/></svg> 地址可用（HTTP " + code + "）<p>" + escape(url) + "</p>");
                         } else {
                             body = page("<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#FF5252\" stroke-width=\"2.5\" stroke-linecap=\"round\" style=\"vertical-align:middle;margin-right:4px\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/></svg> 地址不可用（" + (code < 0 ? "无法连接" : "HTTP " + code) + "）<p>" + escape(url) + "</p>");
                         }
@@ -237,7 +237,7 @@ public class LocalWebServer {
         }
         return "<div style=\"text-align:left;margin:8px 0;padding:14px;border-radius:12px;"
                 + "background:#0b0f16;border:1px solid #2a3545;font-size:12px;color:#9fb0c6\">"
-                + "<div style=\"color:#00dac5;font-size:13px;margin-bottom:8px\">解析到 <b>" + total + "</b> 个频道</div>"
+                + "<div style=\"color:#4A9EFF;font-size:13px;margin-bottom:8px\">解析到 <b>" + total + "</b> 个频道</div>"
                 + sb.toString() + "</div>";
     }
 
@@ -264,13 +264,13 @@ public class LocalWebServer {
                 + "h2{font-size:20px;font-weight:800;margin-bottom:8px;letter-spacing:.5px}"
                 + "p{color:#9fb0c6;font-size:14px;margin-bottom:8px;word-break:break-all}"
                 + "button{width:100%;padding:14px;border:none;border-radius:12px;overflow:hidden;margin-top:14px;"
-                + "background:linear-gradient(135deg,#00dac5,#00b3a0);color:#05110f;font-size:16px;font-weight:800;cursor:pointer;"
-                + "transition:filter .2s,box-shadow .2s;box-shadow:0 6px 20px rgba(0,218,197,.2);-webkit-tap-highlight-color:transparent}"
-                + "button:hover{filter:brightness(1.1);box-shadow:0 8px 24px rgba(0,218,197,.3)}"
-                + "a{display:inline-block;margin-top:14px;color:#00dac5;text-decoration:none;font-size:14px}"
+                + "background:linear-gradient(135deg,#4A9EFF,#3D8AE8);color:#05110f;font-size:16px;font-weight:800;cursor:pointer;"
+                + "transition:filter .2s,box-shadow .2s;box-shadow:0 6px 20px rgba(74,158,255,.2);-webkit-tap-highlight-color:transparent}"
+                + "button:hover{filter:brightness(1.1);box-shadow:0 8px 24px rgba(74,158,255,.3)}"
+                + "a{display:inline-block;margin-top:14px;color:#4A9EFF;text-decoration:none;font-size:14px}"
                 + "a:hover{filter:brightness(1.2)}"
                 + "</style></head><body><div class=\"wrap\">"
-                + "<h2><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align:middle;margin-right:6px\"><polyline points=\"20 6 9 17 4 12\"/></svg> 获取成功</h2><p>" + escape(name) + "</p>"
+                + "<h2><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align:middle;margin-right:6px\"><polyline points=\"20 6 9 17 4 12\"/></svg> 获取成功</h2><p>" + escape(name) + "</p>"
                 + preview
                 + "<button onclick=\"add()\">添加为当前源</button>"
                 + "<br><a href=\"/\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align:middle;margin-right:4px\"><line x1=\"19\" y1=\"12\" x2=\"5\" y2=\"12\"/><polyline points=\"12 19 5 12 12 5\"/></svg> 返回</a>"
@@ -393,23 +393,23 @@ public class LocalWebServer {
     private String icon(String name, int size) {
         switch(name) {
             case "globe":
-                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"2\" y1=\"12\" x2=\"22\" y2=\"12\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/></svg>";
+                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"2\" y1=\"12\" x2=\"22\" y2=\"12\"/><path d=\"M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z\"/></svg>";
             case "link":
                 return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#5a6b80\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71\"/><path d=\"M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71\"/></svg>";
             case "folder":
-                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z\"/></svg>";
+                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z\"/></svg>";
             case "info":
-                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" y1=\"16\" x2=\"12\" y2=\"12\"/><line x1=\"12\" y1=\"8\" x2=\"12.01\" y2=\"8\"/></svg>";
+                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" y1=\"16\" x2=\"12\" y2=\"12\"/><line x1=\"12\" y1=\"8\" x2=\"12.01\" y2=\"8\"/></svg>";
             case "bulb":
                 return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#5a6b80\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/><path d=\"M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14\"/></svg>";
             case "signal":
-                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12.55a11 11 0 0 1 14.01 0\"/><path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/><path d=\"M8.53 16.11a6 6 0 0 1 6.95 0\"/><line x1=\"12\" y1=\"20\" x2=\"12.01\" y2=\"20\"/></svg>";
+                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12.55a11 11 0 0 1 14.01 0\"/><path d=\"M1.42 9a16 16 0 0 1 21.16 0\"/><path d=\"M8.53 16.11a6 6 0 0 1 6.95 0\"/><line x1=\"12\" y1=\"20\" x2=\"12.01\" y2=\"20\"/></svg>";
             case "check":
-                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>";
+                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>";
             case "arrow-left":
                 return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"19\" y1=\"12\" x2=\"5\" y2=\"12\"/><polyline points=\"12 19 5 12 12 5\"/></svg>";
             case "tv":
-                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#00dac5\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"4\" width=\"20\" height=\"14\" rx=\"2\"/><path d=\"M8 21h8M12 18v3\"/></svg>";
+                return "<svg width=\""+size+"\" height=\""+size+"\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#4A9EFF\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"4\" width=\"20\" height=\"14\" rx=\"2\"/><path d=\"M8 21h8M12 18v3\"/></svg>";
             default:
                 return "";
         }
@@ -431,24 +431,24 @@ public class LocalWebServer {
         html.append(".hero .logo-img{width:52px;height:52px}");
         html.append(".hero h1{font-size:22px;font-weight:800;letter-spacing:.5px}");
         html.append(".hero p{font-size:13px;color:#7d8ea3;margin-top:2px}");
-        html.append(".hero .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#00dac5;");
-        html.append("background:rgba(0,218,197,.12);border:1px solid rgba(0,218,197,.3);padding:3px 10px;border-radius:20px;margin-left:auto}");
-        html.append(".hero .live::before{content:'';width:6px;height:6px;border-radius:50%;background:#00dac5;");
-        html.append("box-shadow:0 0 8px #00dac5;animation:pulse 1.6s infinite}");
+        html.append(".hero .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#4A9EFF;");
+        html.append("background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);padding:3px 10px;border-radius:20px;margin-left:auto}");
+        html.append(".hero .live::before{content:'';width:6px;height:6px;border-radius:50%;background:#4A9EFF;");
+        html.append("box-shadow:0 0 8px #4A9EFF;animation:pulse 1.6s infinite}");
         html.append("@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}");
         // 连接信息栏
         html.append(".conn{display:flex;align-items:center;justify-content:space-between;gap:12px;");
-        html.append("background:rgba(0,218,197,.08);border:1px solid rgba(0,218,197,.2);border-radius:14px;");
+        html.append("background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);border-radius:14px;");
         html.append("padding:10px 16px;margin-bottom:22px;font-size:12px}");
         html.append(".conn .info{display:flex;align-items:center;gap:8px;color:#7d8ea3}");
-        html.append(".conn .info b{color:#00dac5;font-weight:600}");
-        html.append(".conn .ip{font-family:Consolas,monospace;color:#00dac5;font-size:12px}");
+        html.append(".conn .info b{color:#4A9EFF;font-weight:600}");
+        html.append(".conn .ip{font-family:Consolas,monospace;color:#4A9EFF;font-size:12px}");
         // 卡片
         html.append(".card{background:linear-gradient(135deg,rgba(20,26,36,.92),rgba(15,20,28,.92));");
         html.append("border:1px solid rgba(35,44,58,.9);border-radius:20px;");
         html.append("padding:22px;margin-bottom:16px;backdrop-filter:blur(8px);");
         html.append("box-shadow:0 4px 20px rgba(0,0,0,.2);transition:border-color .2s,box-shadow .2s}");
-        html.append(".card:hover{border-color:rgba(0,218,197,.2);box-shadow:0 4px 24px rgba(0,218,197,.08)}");
+        html.append(".card:hover{border-color:rgba(74,158,255,.2);box-shadow:0 4px 24px rgba(74,158,255,.08)}");
         html.append(".card h2{font-size:14px;font-weight:700;color:#9fb0c6;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px}");
         html.append(".card h2 .ic{width:18px;height:18px;flex-shrink:0}");
         html.append(".divider{height:1px;background:rgba(35,44,58,.7);margin:6px 0 16px}");
@@ -456,16 +456,16 @@ public class LocalWebServer {
         html.append(".input-wrap{position:relative;margin-bottom:12px}");
         html.append(".input-wrap input{width:100%;padding:14px 16px 14px 42px;border-radius:12px;");
         html.append("border:1px solid #2a3545;background:#0b0f16;color:#fff;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s}");
-        html.append(".input-wrap input:focus{border-color:#00dac5;box-shadow:0 0 0 3px rgba(0,218,197,.12)}");
+        html.append(".input-wrap input:focus{border-color:#4A9EFF;box-shadow:0 0 0 3px rgba(74,158,255,.12)}");
         html.append(".input-wrap .icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px}");
         html.append("input[type=file]{width:100%;padding:11px;border-radius:12px;border:1px solid #2a3545;");
         html.append("background:#0b0f16;color:#9fb0c6;font-size:13px;margin-bottom:12px;outline:none}");
         html.append("input[type=file]::file-selector-button{background:#1b2431;color:#cfd9e6;border:none;border-radius:8px;overflow:hidden;padding:8px 14px;margin-right:10px;cursor:pointer;font-size:13px}");
         // 按钮
-        html.append("button{width:100%;padding:14px;border:none;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#00dac5,#00b3a0);");
+        html.append("button{width:100%;padding:14px;border:none;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#4A9EFF,#3D8AE8);");
         html.append("color:#05110f;font-size:16px;font-weight:800;letter-spacing:.5px;cursor:pointer;transition:transform .1s,box-shadow .2s,filter .2s;-webkit-tap-highlight-color:transparent}");
         html.append("button:active{transform:scale(.97)}");
-        html.append("button:hover{filter:brightness(1.1);box-shadow:0 6px 20px rgba(0,218,197,.3)}");
+        html.append("button:hover{filter:brightness(1.1);box-shadow:0 6px 20px rgba(74,158,255,.3)}");
         html.append("button:disabled{opacity:.5;cursor:not-allowed}");
         html.append("button.sec{background:linear-gradient(135deg,#1b2431,#232c3a);color:#e8edf3;font-weight:600}");
         html.append("button.sec:hover{box-shadow:0 4px 16px rgba(0,0,0,.3);filter:none}");
@@ -474,7 +474,7 @@ public class LocalWebServer {
         html.append(".tip b{color:#8fb0c6;font-weight:600}");
         html.append(".tip-ic{width:14px;height:14px;flex-shrink:0}");
         html.append(".footer{text-align:center;font-size:11px;color:#42506a;margin-top:20px;padding-top:20px;border-top:1px solid rgba(35,44,58,.5)}");
-        html.append(".footer span{color:#00dac5}");
+        html.append(".footer span{color:#4A9EFF}");
         html.append("</style></head><body>");
 
         // 头部（logo 内联 SVG，与 App 图标一致）
@@ -548,16 +548,16 @@ public class LocalWebServer {
                 + "background:radial-gradient(1200px 600px at 20% -10%,#1a2740 0%,#0b0f16 55%) fixed,#0b0f16;"
                 + "color:#e8edf3;padding:40px 24px;line-height:1.7;font-size:15px}"
                 + ".wrap{max-width:560px;margin:0 auto;text-align:center}"
-                + ".ok{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#00dac5,#00b3a0);"
+                + ".ok{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#4A9EFF,#3D8AE8);"
                 + "display:flex;align-items:center;justify-content:center;margin:0 auto 28px;"
-                + "box-shadow:0 8px 30px rgba(0,218,197,.3);animation:pop .4s ease}"
+                + "box-shadow:0 8px 30px rgba(74,158,255,.3);animation:pop .4s ease}"
                 + "@keyframes pop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}"
                 + "h2{font-size:20px;font-weight:800;margin-bottom:12px;letter-spacing:.5px}"
                 + "p{color:#9fb0c6;font-size:14px;margin-bottom:8px;word-break:break-all}"
                 + ".btn{display:block;width:fit-content;margin:28px auto 0;padding:14px 36px;border-radius:12px;overflow:hidden;"
-                + "background:linear-gradient(135deg,#00dac5,#00b3a0);color:#05110f;text-decoration:none;font-weight:700;"
-                + "font-size:15px;transition:filter .2s,box-shadow .2s;box-shadow:0 6px 20px rgba(0,218,197,.25)}"
-                + "a.btn:hover{filter:brightness(1.1);box-shadow:0 8px 24px rgba(0,218,197,.35)}"
+                + "background:linear-gradient(135deg,#4A9EFF,#3D8AE8);color:#05110f;text-decoration:none;font-weight:700;"
+                + "font-size:15px;transition:filter .2s,box-shadow .2s;box-shadow:0 6px 20px rgba(74,158,255,.25)}"
+                + "a.btn:hover{filter:brightness(1.1);box-shadow:0 8px 24px rgba(74,158,255,.35)}"
                 + "</style></head><body><div class=\"wrap\">"
                 + "<div class=\"ok\"><svg width=\"40\" height=\"40\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg></div>" + content
                 + "<a class=\"btn\" href=\"/\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"vertical-align:middle;margin-right:4px\"><line x1=\"19\" y1=\"12\" x2=\"5\" y2=\"12\"/><polyline points=\"12 19 5 12 12 5\"/></svg> 返回首页</a>"
