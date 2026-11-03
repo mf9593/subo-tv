@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置面板列表项，高亮由 Adapter 手动控制；多选项项右侧显示 < > 箭头 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settingRow"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="20dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="14dp">
+
+    <TextView
+        android:id="@+id/settingTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:singleLine="true"
+        android:textColor="@color/text_primary"
+        android:textSize="17sp" />
+
+    <TextView
+        android:id="@+id/settingArrowLeft"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="‹"
+        android:textColor="@color/text_tertiary"
+        android:textSize="22sp"
+        android:gravity="center"
+        android:minWidth="28dp"
+        android:paddingEnd="4dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/settingValue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:singleLine="true"
+        android:textColor="@color/text_tertiary"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/settingArrowRight"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="›"
+        android:textColor="@color/text_tertiary"
+        android:textSize="22sp"
+        android:gravity="center"
+        android:minWidth="28dp"
+        android:paddingStart="4dp"
+        android:visibility="gone" />
+</LinearLayout>
