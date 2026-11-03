@@ -2160,7 +2160,16 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                                 handler.post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        showUpdateDialog(latestVer, currentVer);
+                                        android.util.Log.i("UpdateCheck", "发现新版本 " + latestVer + "，开始处理");
+                                        // Android 4.4 SSL 不兼容 → 直接提示浏览器打开
+                                        if (android.os.Build.VERSION.SDK_INT < 21) {
+                                            showToast("发现新版本 " + latestVer + "，正在打开浏览器");
+                                            openBrowserReleases();
+                                            return;
+                                        }
+                                        // Android 5+：直接下载 APK（Toast 提示，不弹窗）
+                                        showToast("发现新版本 " + latestVer + "，开始下载…");
+                                        downloadAndInstallUpdate(latestVer);
                                     }
                                 });
                             } else {
@@ -2193,6 +2202,12 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
+                            // Android 4.4 SSL 不兼容 GitHub TLS（OpenSSL 太老）→ 打开浏览器 Release 页
+                            if (android.os.Build.VERSION.SDK_INT < 21) {
+                                showToast("无法连接更新服务器，正在打开浏览器");
+                                openBrowserReleases();
+                                return;
+                            }
                             showToast(getString(R.string.update_failed));
                         }
                     });
@@ -2285,23 +2300,32 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
 
     /** 显示更新弹窗（内置更新：下载 APK + 提示安装） */
     private void showUpdateDialog(String latestVer, String currentVer) {
-        new android.app.AlertDialog.Builder(this)
-                .setTitle(R.string.settings_check_update)
-                .setMessage(getString(R.string.update_available, latestVer, currentVer))
-                .setPositiveButton(R.string.update_confirm, new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface dialog, int which) {
-                        // Android 4.4 的 SSL 不兼容 GitHub TLS，无法直接下载 → 浏览器打开 Release 页
-                        if (android.os.Build.VERSION.SDK_INT < 21) {
-                            openBrowserReleases();
-                            return;
+        android.util.Log.i("UpdateCheck", "显示更新弹窗: " + latestVer + " vs " + currentVer);
+        // 先关闭设置面板，避免弹窗被遮挡
+        try { closeSettingsPanel(); } catch (Throwable t) { /* 忽略 */ }
+        try {
+            android.app.AlertDialog dlg = new android.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.settings_check_update)
+                    .setMessage(getString(R.string.update_available, latestVer, currentVer))
+                    .setPositiveButton(R.string.update_confirm, new android.content.DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(android.content.DialogInterface dialog, int which) {
+                            // Android 4.4 的 SSL 不兼容 GitHub TLS，无法直接下载 → 浏览器打开 Release 页
+                            if (android.os.Build.VERSION.SDK_INT < 21) {
+                                openBrowserReleases();
+                                return;
+                            }
+                            // Android 5+：内置下载 APK + 安装
+                            downloadAndInstallUpdate(latestVer);
                         }
-                        // Android 5+：内置下载 APK + 安装
-                        downloadAndInstallUpdate(latestVer);
-                    }
-                })
-                .setNegativeButton(R.string.update_cancel, null)
-                .show();
+                    })
+                    .setNegativeButton(R.string.update_cancel, null)
+                    .create();
+            dlg.show();
+        } catch (Throwable t) {
+            android.util.Log.w("UpdateCheck", "弹窗显示失败: " + t);
+            showToast("发现新版本 " + latestVer + "，当前 " + currentVer);
+        }
     }
 
     /** 浏览器打开 GitHub Releases（Android 4.4 fallback）。 */
