@@ -1593,41 +1593,32 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
         // 频道面板标题文字颜色
         TextView channelTitle = (TextView) findViewById(R.id.channelPanelTitle);
         if (channelTitle != null) channelTitle.setTextColor(ThemeManager.accent());
-        // 分类列标题文字颜色（跟随主题）
+        // 分类列标题文字颜色（白色，配合 panel_bg 同色背景）
         TextView categoryHeader = (TextView) findViewById(R.id.categoryHeader);
         if (categoryHeader != null) {
-            categoryHeader.setTextColor(ThemeManager.accent());
-            android.graphics.drawable.GradientDrawable chBg = new android.graphics.drawable.GradientDrawable();
-            chBg.setColor(ThemeManager.accentDim());
-            categoryHeader.setBackgroundDrawable(chBg);
+            categoryHeader.setTextColor(getResources().getColor(R.color.text_primary));
+            // 背景由 XML group_header_bg 决定（与面板同色），不动态覆盖
         }
-        // 频道面板标题栏背景色（跟随主题）
+        // 频道面板标题栏背景色（与面板同色，由 XML 决定）
         View channelHeader = findViewById(R.id.channelPanelHeader);
         if (channelHeader != null) {
-            android.graphics.drawable.GradientDrawable headerBg = new android.graphics.drawable.GradientDrawable();
-            headerBg.setColor(ThemeManager.accentDim());
-            channelHeader.setBackgroundDrawable(headerBg);
+            // 不动态覆盖背景，保持 XML group_header_bg
         }
-        // 频道当前分类标题栏背景色（跟随主题）
+        // 频道当前分类标题栏（白色文字，背景同面板）
         TextView categoryCurrent = (TextView) findViewById(R.id.categoryCurrent);
         if (categoryCurrent != null) {
-            android.graphics.drawable.GradientDrawable curBg = new android.graphics.drawable.GradientDrawable();
-            curBg.setColor(ThemeManager.accentDim());
-            categoryCurrent.setBackgroundDrawable(curBg);
-            categoryCurrent.setTextColor(ThemeManager.accent());
+            categoryCurrent.setTextColor(getResources().getColor(R.color.text_primary));
         }
-        // 设置面板标题栏背景色（跟随主题）
+        // 设置面板标题栏背景色（与面板同色，由 XML 决定）
         View settingsHeader = findViewById(R.id.settingsPanelHeader);
         if (settingsHeader != null) {
-            android.graphics.drawable.GradientDrawable shBg = new android.graphics.drawable.GradientDrawable();
-            shBg.setColor(ThemeManager.accentDim());
-            settingsHeader.setBackgroundDrawable(shBg);
+            // 不动态覆盖背景，保持 XML group_header_bg
         }
         // 刷新分类列表，使高亮/文字颜色跟随主题更新
         if (categoryList != null) categoryList.invalidateViews();
-        // 设置面板标题文字颜色
+        // 设置面板标题文字颜色（白色，配合 panel_bg 同色背景）
         TextView settingsTitle = (TextView) findViewById(R.id.settingsTitleText);
-        if (settingsTitle != null) settingsTitle.setTextColor(ThemeManager.accent());
+        if (settingsTitle != null) settingsTitle.setTextColor(getResources().getColor(R.color.text_primary));
         // 设置面板标题栏圆点
         View titleText = findViewById(R.id.settingsTitleText);
         if (titleText != null && titleText.getParent() instanceof android.view.ViewGroup) {
