@@ -195,10 +195,10 @@
         android:layout_gravity="center_horizontal|bottom"
         android:layout_marginBottom="36dp"
         android:background="@drawable/bg_osd"
-        android:paddingStart="22dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="22dp"
-        android:paddingBottom="12dp"
+        android:paddingStart="30dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="30dp"
+        android:paddingBottom="18dp"
         style="@style/ToastText"
         android:visibility="gone" />
 

@@ -2132,6 +2132,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
     /** 检查 GitHub Releases 是否有新版本 */
     private void checkForUpdate() {
         showToast(getString(R.string.update_checking));
+        android.util.Log.i("UpdateCheck", "开始检查更新，当前版本: " + getVersionName());
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -2145,6 +2146,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                     conn.setRequestProperty("User-Agent", "SuboTV/" + getVersionName());
                     conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
                     int code = conn.getResponseCode();
+                    android.util.Log.i("UpdateCheck", "GitHub API 响应码: " + code);
                     if (code == 200) {
                         java.io.BufferedReader r = new java.io.BufferedReader(
                                 new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
@@ -2153,6 +2155,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                         while ((l = r.readLine()) != null) sb.append(l);
                         r.close();
                         String latest = parseTagName(sb.toString());
+                        android.util.Log.i("UpdateCheck", "解析到最新版本: " + latest);
                         if (latest != null) {
                             latest = latest.startsWith("v") ? latest.substring(1) : latest;
                             final String latestVer = latest;
@@ -2182,6 +2185,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                             });
                         }
                     } else {
+                        android.util.Log.w("UpdateCheck", "API 非 200: " + code);
                         handler.post(new Runnable() {
                             @Override
                             public void run() {
@@ -2190,6 +2194,7 @@ public class MainActivity extends Activity implements LivePlayer.Listener {
                         });
                     }
                 } catch (Throwable t) {
+                    android.util.Log.w("UpdateCheck", "检查更新异常: " + t);
                     handler.post(new Runnable() {
                         @Override
                         public void run() {

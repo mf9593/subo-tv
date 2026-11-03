@@ -26,7 +26,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/help_remote_title"
-                android:textColor="@color/accent"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
@@ -45,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="22dp"
                 android:text="@string/help_source_title"
-                android:textColor="@color/accent"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
@@ -64,7 +64,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="22dp"
                 android:text="@string/help_add_title"
-                android:textColor="@color/accent"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
@@ -83,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="22dp"
                 android:text="@string/help_m3u_title"
-                android:textColor="@color/accent"
+                android:textColor="@color/text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
@@ -120,7 +120,7 @@
         android:layout_marginTop="16dp"
         android:background="@drawable/bg_button"
         android:text="@string/help_close"
-        android:textColor="@color/accent"
+        android:textColor="@color/text_primary"
         android:textSize="15sp"
         android:textStyle="bold" />
 </LinearLayout>
